@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 2
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Bump version and send Discord notification
+      - name: Validate header and send Discord notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
@@ -41,16 +41,127 @@ jobs:
           fi
 
           # ══════════════════════════════════════════
-          # SEQUENTIAL VERSION
+          # FIND SOURCE FILE
+          # ══════════════════════════════════════════
+          SOURCE_FILE=""
+          for f in source/*.lua; do
+            if [ -f "$f" ]; then
+              SOURCE_FILE="$f"
+              break
+            fi
+          done
+
+          if [ -z "$SOURCE_FILE" ]; then
+            echo "❌ No source/*.lua file found — aborting"
+            exit 0
+          fi
+
+          # ══════════════════════════════════════════
+          # VALIDATE REQUIRED HEADER (first 4 lines)
+          # The workflow only fires if the pushed file
+          # starts with exactly the V7 header block.
+          # If the header is missing, skip silently.
+          # ══════════════════════════════════════════
+          LINE1=$(sed -n '1p' "$SOURCE_FILE")
+          LINE2=$(sed -n '2p' "$SOURCE_FILE")
+          LINE3=$(sed -n '3p' "$SOURCE_FILE")
+          LINE4=$(sed -n '4p' "$SOURCE_FILE")
+
+          EXPECTED_L1='local SCRIPT_VERSION = "'
+          EXPECTED_L2='local SCRIPT_VERSION_DISPLAY = "7."..SCRIPT_VERSION'
+          EXPECTED_L3='local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/VERSION"'
+          EXPECTED_L4='local INTEGRITY_HASH = "binxix_v7_official"'
+
+          # Line 1 just needs to START with the pattern (version string varies)
+          if ! echo "$LINE1" | grep -qF "$EXPECTED_L1"; then
+            echo "⏭️ Skipping — line 1 does not match V7 header (got: $LINE1)"
+            exit 0
+          fi
+          if [ "$LINE2" != "$EXPECTED_L2" ]; then
+            echo "⏭️ Skipping — line 2 does not match V7 header"
+            exit 0
+          fi
+          if [ "$LINE3" != "$EXPECTED_L3" ]; then
+            echo "⏭️ Skipping — line 3 does not match V7 header"
+            exit 0
+          fi
+          if [ "$LINE4" != "$EXPECTED_L4" ]; then
+            echo "⏭️ Skipping — line 4 does not match V7 header"
+            exit 0
+          fi
+
+          echo "✅ V7 header validated"
+
+          # ══════════════════════════════════════════
+          # DETECT OFFLINE / MAINTENANCE PUSH
+          # If commit message contains "offline" or
+          # "updating" (case-insensitive) send a
+          # separate "offline / please wait" embed
+          # and exit — no version bump needed.
+          # ══════════════════════════════════════════
+          LOWER_MSG=$(echo "$COMMIT_MSG" | tr '[:upper:]' '[:lower:]')
+
+          if echo "$LOWER_MSG" | grep -qE "(offline|updating)"; then
+            echo "📴 Offline/updating push detected — sending status embed"
+
+            OFFLINE_PAYLOAD=$(cat <<EOF
+          {
+            "username": "Binxix Hub V7",
+            "embeds": [{
+              "title": "🔴 Binxix Hub — Offline / Updating",
+              "color": 15158332,
+              "description": "**Binxix Hub is currently offline while an update is being pushed.**\n\nPlease wait — the script will be back online shortly.\n\n> Do not execute the script until this message is followed by a new update ping.",
+              "fields": [
+                {
+                  "name": "Status",
+                  "value": "🔴 Offline",
+                  "inline": true
+                },
+                {
+                  "name": "Pushed by",
+                  "value": "${AUTHOR}",
+                  "inline": true
+                },
+                {
+                  "name": "Commit",
+                  "value": "[\`${SHORT_SHA}\`](${COMMIT_URL})",
+                  "inline": true
+                }
+              ],
+              "footer": {
+                "text": "Binxix Hub Updates • ${REPO}"
+              },
+              "timestamp": "${TIMESTAMP}"
+            }]
+          }
+          EOF
+            )
+
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                 -H "Content-Type: application/json" \
+                 -d "$OFFLINE_PAYLOAD" \
+                 "$DISCORD_WEBHOOK")
+
+            echo "📴 Offline embed HTTP $HTTP_CODE"
+            exit 0
+          fi
+
+          # ══════════════════════════════════════════
+          # SEQUENTIAL VERSION (7.x format)
+          # Read build number from VERSION file,
+          # increment, write back and push.
           # ══════════════════════════════════════════
           if [ -f "VERSION" ]; then
             BUILD_NUM=$(cat VERSION | tr -d '[:space:]')
           else
-            BUILD_NUM=335
+            BUILD_NUM=0
           fi
 
           BUILD_NUM=$((BUILD_NUM + 1))
-          VERSION="v6.${BUILD_NUM}"
+
+          # Zero-pad to 3 digits: 1 → 001, 12 → 012, 123 → 123
+          PADDED=$(printf "%03d" "$BUILD_NUM")
+          VERSION="v7.${PADDED}"
 
           echo "$BUILD_NUM" > VERSION
           git config user.name "github-actions[bot]"
@@ -62,18 +173,10 @@ jobs:
           # ══════════════════════════════════════════
           # DIFF source/*.lua ONLY
           # ══════════════════════════════════════════
-          SOURCE_FILE=""
-          for f in source/*.lua; do
-            if [ -f "$f" ]; then
-              SOURCE_FILE="$f"
-              break
-            fi
-          done
-
           CHANGES=""
           STATS_LINE=""
 
-          if [ -n "$SOURCE_FILE" ] && [ -n "$PARENT_SHA" ]; then
+          if [ -n "$PARENT_SHA" ]; then
             if git diff --name-only "$PARENT_SHA" HEAD | grep -qF "$SOURCE_FILE"; then
 
               INS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk '{print $1}')
@@ -130,81 +233,21 @@ jobs:
                 [ -n "$SETTING_LIST" ] && CHANGES="${CHANGES}⚙️ **New Settings:** ${SETTING_LIST}\n"
               fi
 
-              # New Checkboxes
-              NEW_CHECKBOXES=$(echo "$ADDED_LINES" | grep -oP 'createCheckbox\(\w+,\s*"\K[^"]+' 2>/dev/null | head -8 || true)
-              if [ -n "$NEW_CHECKBOXES" ]; then
-                CB_LIST=""
+              # New Toggles (addToggleRow pattern for V7 card UI)
+              NEW_TOGGLES=$(echo "$ADDED_LINES" | grep -oP '\"toggle\",\"\K[^"]+' 2>/dev/null | head -8 || true)
+              if [ -n "$NEW_TOGGLES" ]; then
+                TOG_LIST=""
                 while IFS= read -r cb; do
-                  [ -n "$cb" ] && CB_LIST="${CB_LIST}• ${cb}\n"
-                done <<< "$NEW_CHECKBOXES"
-                [ -n "$CB_LIST" ] && CHANGES="${CHANGES}✅ **New Toggles:**\n${CB_LIST}"
+                  [ -n "$cb" ] && TOG_LIST="${TOG_LIST}• ${cb}\n"
+                done <<< "$NEW_TOGGLES"
+                [ -n "$TOG_LIST" ] && CHANGES="${CHANGES}✅ **New Toggles:**\n${TOG_LIST}"
               fi
-
-              # New Sliders
-              NEW_SLIDERS=$(echo "$ADDED_LINES" | grep -oP 'createSlider\(\w+,\s*"\K[^"]+' 2>/dev/null | head -6 || true)
-              if [ -n "$NEW_SLIDERS" ]; then
-                SL_LIST=""
-                while IFS= read -r sl; do
-                  [ -n "$sl" ] && SL_LIST="${SL_LIST}• ${sl}\n"
-                done <<< "$NEW_SLIDERS"
-                [ -n "$SL_LIST" ] && CHANGES="${CHANGES}🎚️ **New Sliders:**\n${SL_LIST}"
-              fi
-
-              # New Dropdowns
-              NEW_DROPDOWNS=$(echo "$ADDED_LINES" | grep -oP 'createDropdown\(\w+,\s*"\K[^"]+' 2>/dev/null | head -4 || true)
-              if [ -n "$NEW_DROPDOWNS" ]; then
-                DD_LIST=""
-                while IFS= read -r dd; do
-                  [ -n "$dd" ] && DD_LIST="${DD_LIST}• ${dd}\n"
-                done <<< "$NEW_DROPDOWNS"
-                [ -n "$DD_LIST" ] && CHANGES="${CHANGES}📋 **New Dropdowns:**\n${DD_LIST}"
-              fi
-
-              # New Sections
-              NEW_SECTIONS=$(echo "$ADDED_LINES" | grep -oP 'createSectionHeader\(\w+,\s*"\K[^"]+' 2>/dev/null | head -5 || true)
-              if [ -n "$NEW_SECTIONS" ]; then
-                SEC_LIST=""
-                while IFS= read -r sec; do
-                  [ -n "$sec" ] && SEC_LIST="${SEC_LIST}\`${sec}\` "
-                done <<< "$NEW_SECTIONS"
-                [ -n "$SEC_LIST" ] && CHANGES="${CHANGES}📂 **New Sections:** ${SEC_LIST}\n"
-              fi
-
-              # New Themes
-              if echo "$ADDED_LINES" | grep -qP "Background\s*=\s*Color3"; then
-                NEW_THEMES=$(echo "$ADDED_LINES" | grep -oP '^\+\s{4}\K\w+(?=\s*=\s*\{)' 2>/dev/null | head -5 || true)
-                if [ -n "$NEW_THEMES" ]; then
-                  THEME_LIST=""
-                  while IFS= read -r t; do
-                    [ -n "$t" ] && THEME_LIST="${THEME_LIST}\`${t}\` "
-                  done <<< "$NEW_THEMES"
-                  [ -n "$THEME_LIST" ] && CHANGES="${CHANGES}🎨 **New Themes:** ${THEME_LIST}\n"
-                fi
-              fi
-
-              # WIP Flags
-              NEW_WIP=$(echo "$ADDED_LINES" | grep -c 'wip\s*=\s*true' 2>/dev/null || echo "0")
-              [ "$NEW_WIP" -gt 0 ] && CHANGES="${CHANGES}🚧 **WIP flags added:** ${NEW_WIP} game(s)\n"
-
-              # External Scripts
-              NEW_LOADSCRIPT=$(echo "$ADDED_LINES" | grep -oP 'loadScript\s*=\s*"\K[^"]+' 2>/dev/null | head -3 || true)
-              if [ -n "$NEW_LOADSCRIPT" ]; then
-                LS_LIST=""
-                while IFS= read -r ls; do
-                  [ -n "$ls" ] && LS_LIST="${LS_LIST}• \`${ls}\`\n"
-                done <<< "$NEW_LOADSCRIPT"
-                [ -n "$LS_LIST" ] && CHANGES="${CHANGES}📜 **New External Scripts:**\n${LS_LIST}"
-              fi
-
-              # Event Connections
-              NEW_CONNS=$(echo "$ADDED_LINES" | grep -c ":Connect(function" 2>/dev/null || echo "0")
-              [ "$NEW_CONNS" -gt 3 ] && CHANGES="${CHANGES}⚡ **New event hooks:** ${NEW_CONNS} connections\n"
 
             else
-              STATS_LINE="📄 \`${SOURCE_FILE}\` — no changes"
+              STATS_LINE="📄 \`${SOURCE_FILE}\` — no changes to source file"
             fi
           else
-            STATS_LINE="⚠️ No source/*.lua file found"
+            STATS_LINE="⚠️ Could not compute diff — first commit"
           fi
 
           # ══════════════════════════════════════════
@@ -213,9 +256,9 @@ jobs:
           DESC="**${COMMIT_MSG}**\n"
 
           [ -n "$STATS_LINE" ] && DESC="${DESC}\n${STATS_LINE}\n"
-          [ -n "$CHANGES" ] && DESC="${DESC}\n${CHANGES}"
+          [ -n "$CHANGES" ]    && DESC="${DESC}\n${CHANGES}"
 
-          if [ -z "$CHANGES" ] && [[ "$STATS_LINE" != *"no changes"* ]] && [[ "$STATS_LINE" != *"No source"* ]]; then
+          if [ -z "$CHANGES" ] && [[ "$STATS_LINE" != *"no changes"* ]] && [[ "$STATS_LINE" != *"Could not"* ]]; then
             DESC="${DESC}\n🔧 Minor update"
           fi
 
@@ -224,11 +267,11 @@ jobs:
           fi
 
           # ══════════════════════════════════════════
-          # SEND TO DISCORD
+          # SEND UPDATE EMBED TO DISCORD
           # ══════════════════════════════════════════
           PAYLOAD=$(cat <<EOF
           {
-            "username": "Binxix Hub V6",
+            "username": "Binxix Hub V7",
             "embeds": [{
               "title": "🚀 Binxix Hub — ${VERSION}",
               "url": "${COMMIT_URL}",
@@ -266,10 +309,10 @@ jobs:
                "$DISCORD_WEBHOOK")
 
           if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ Discord notification sent!"
+            echo "✅ Discord notification sent — ${VERSION}"
           else
             echo "⚠️ HTTP $HTTP_CODE — sending fallback"
-            FALLBACK='{"username":"Binxix Hub V6","content":"🚀 **Update '"${VERSION}"'** — '"${COMMIT_MSG}"'\n🔗 '"${COMMIT_URL}"'"}'
+            FALLBACK="{\"username\":\"Binxix Hub V7\",\"content\":\"🚀 **${VERSION}** — ${COMMIT_MSG}\n🔗 ${COMMIT_URL}\"}"
             curl -s -H "Content-Type: application/json" -d "$FALLBACK" "$DISCORD_WEBHOOK"
             echo "✅ Fallback sent"
           fi
