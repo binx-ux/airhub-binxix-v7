@@ -9,16 +9,16 @@
 
 <div align="center">
 
-**AirHub V2 Style Edition — Binxix Hub V6**
+**AirHub V2 Style Edition — Binxix Hub V7**
 
-[![Version](https://img.shields.io/badge/version-6-blueviolet?style=for-the-badge)](https://github.com/binx-ux/airhub-binxix-v6)
+[![Version](https://img.shields.io/badge/version-7-blueviolet?style=for-the-badge)](https://github.com/binx-ux/airhub-binxix-v7)
 [![Platform](https://img.shields.io/badge/platform-Roblox-00b4d8?style=for-the-badge)](https://roblox.com)
 [![Language](https://img.shields.io/badge/language-Lua-purple?style=for-the-badge)](https://lua.org)
-[![Status](https://img.shields.io/badge/status-active-brightgreen?style=for-the-badge)](https://github.com/binx-ux/airhub-binxix-v6)
+[![Status](https://img.shields.io/badge/status-active-brightgreen?style=for-the-badge)](https://github.com/binx-ux/airhub-binxix-v7)
 
 *A universal Roblox script hub — beta revival of a classic.*
 
-[**Discord**](https://discord.gg/S4nPV2Rx7F) · · [**Report a Bug**](https://github.com/binx-ux/airhub-binxix-v6/issues)
+[**Discord**](https://discord.gg/S4nPV2Rx7F) · · [**Report a Bug**](https://github.com/binx-ux/airhub-binxix-v7/issues)
 
 </div>
 
