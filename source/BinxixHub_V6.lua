@@ -1,8 +1,14 @@
-local SCRIPT_VERSION = "000"
+local SCRIPT_VERSION = "002"
 local SCRIPT_VERSION_DISPLAY = "7."..SCRIPT_VERSION
 local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/VERSION"
 local INTEGRITY_HASH = "binxix_v7_official"
 
+-- Kill any previous instance of this script before starting
+-- Without this, re-executing resets _G.BinxixUnloaded=false and wakes
+-- up old connections that hold stale GUI frame references -> nil crash
+if _G.BinxixCleanup then
+    pcall(_G.BinxixCleanup)
+end
 _G.BinxixUnloaded = false
 
 -- ====================================================================
@@ -127,65 +133,25 @@ end
 -- ====================================================================
 -- THEME SYSTEM
 -- ====================================================================
--- UI palette — card-layout specific keys added
 local ThemePresets = {
     Purple = {
-        -- Window
-        WindowBg      = Color3.fromRGB(28, 28, 33),
-        WindowBorder  = Color3.fromRGB(160, 80, 200),
-        -- Sidebar
-        SidebarBg     = Color3.fromRGB(20, 20, 24),
-        SidebarBorder = Color3.fromRGB(45, 45, 55),
-        LogoText      = Color3.fromRGB(180, 100, 220),
-        -- Tab buttons
-        TabBg         = Color3.fromRGB(28, 28, 34),
-        TabBgHover    = Color3.fromRGB(38, 32, 48),
-        TabBgActive   = Color3.fromRGB(160, 70, 200),
-        TabText       = Color3.fromRGB(140, 130, 155),
-        TabTextActive = Color3.fromRGB(255, 255, 255),
-        TabIcon       = Color3.fromRGB(100, 90, 115),
-        TabIconActive = Color3.fromRGB(255, 255, 255),
-        -- Content area
-        ContentBg     = Color3.fromRGB(22, 22, 28),
-        -- Cards
-        CardBg        = Color3.fromRGB(32, 32, 40),
-        CardBorder    = Color3.fromRGB(50, 48, 62),
-        CardHeaderBg  = Color3.fromRGB(140, 65, 180),
-        CardHeaderText= Color3.fromRGB(255, 255, 255),
-        -- Toggle
-        ToggleOn      = Color3.fromRGB(150, 70, 200),
-        ToggleOff     = Color3.fromRGB(55, 55, 68),
-        ToggleKnob    = Color3.fromRGB(255, 255, 255),
-        -- Slider
-        SliderTrack   = Color3.fromRGB(45, 45, 58),
-        SliderFill    = Color3.fromRGB(160, 80, 200),
-        SliderKnob    = Color3.fromRGB(200, 120, 240),
-        -- Text
-        TextPrimary   = Color3.fromRGB(215, 215, 225),
-        TextSecondary = Color3.fromRGB(140, 135, 155),
-        TextDim       = Color3.fromRGB(90, 88, 102),
-        TextAccent    = Color3.fromRGB(185, 100, 230),
-        -- Dropdown / enums
-        EnumBg        = Color3.fromRGB(42, 40, 52),
-        EnumBgActive  = Color3.fromRGB(140, 65, 180),
-        EnumText      = Color3.fromRGB(180, 175, 195),
-        EnumTextActive= Color3.fromRGB(255, 255, 255),
-        -- Keybind
-        KeybindBg     = Color3.fromRGB(42, 40, 52),
-        KeybindText   = Color3.fromRGB(185, 100, 230),
-        -- Input
-        InputBg       = Color3.fromRGB(20, 20, 26),
-        InputBorder   = Color3.fromRGB(65, 62, 80),
-        -- Warn
-        WarnColor     = Color3.fromRGB(255, 160, 50),
-        -- ESP colors
-        ESP_Close     = Color3.fromRGB(255, 60, 60),
-        ESP_Medium    = Color3.fromRGB(255, 180, 50),
-        ESP_Far       = Color3.fromRGB(255, 255, 80),
-        ESP_VeryFar   = Color3.fromRGB(80, 255, 80),
-        -- Radar
-        RadarBg       = Color3.fromRGB(14, 12, 18),
-        RadarBorder   = Color3.fromRGB(120, 60, 160),
+        WindowBg=Color3.fromRGB(28,28,33),WindowBorder=Color3.fromRGB(160,80,200),
+        SidebarBg=Color3.fromRGB(20,20,24),SidebarBorder=Color3.fromRGB(45,45,55),
+        LogoText=Color3.fromRGB(180,100,220),
+        TabBg=Color3.fromRGB(28,28,34),TabBgHover=Color3.fromRGB(38,32,48),TabBgActive=Color3.fromRGB(160,70,200),
+        TabText=Color3.fromRGB(140,130,155),TabTextActive=Color3.fromRGB(255,255,255),
+        TabIcon=Color3.fromRGB(100,90,115),TabIconActive=Color3.fromRGB(255,255,255),
+        ContentBg=Color3.fromRGB(22,22,28),
+        CardBg=Color3.fromRGB(32,32,40),CardBorder=Color3.fromRGB(50,48,62),CardHeaderBg=Color3.fromRGB(140,65,180),CardHeaderText=Color3.fromRGB(255,255,255),
+        ToggleOn=Color3.fromRGB(150,70,200),ToggleOff=Color3.fromRGB(55,55,68),ToggleKnob=Color3.fromRGB(255,255,255),
+        SliderTrack=Color3.fromRGB(45,45,58),SliderFill=Color3.fromRGB(160,80,200),SliderKnob=Color3.fromRGB(200,120,240),
+        TextPrimary=Color3.fromRGB(215,215,225),TextSecondary=Color3.fromRGB(140,135,155),TextDim=Color3.fromRGB(90,88,102),TextAccent=Color3.fromRGB(185,100,230),
+        EnumBg=Color3.fromRGB(42,40,52),EnumBgActive=Color3.fromRGB(140,65,180),EnumText=Color3.fromRGB(180,175,195),EnumTextActive=Color3.fromRGB(255,255,255),
+        KeybindBg=Color3.fromRGB(42,40,52),KeybindText=Color3.fromRGB(185,100,230),
+        InputBg=Color3.fromRGB(20,20,26),InputBorder=Color3.fromRGB(65,62,80),
+        WarnColor=Color3.fromRGB(255,160,50),
+        ESP_Close=Color3.fromRGB(255,60,60),ESP_Medium=Color3.fromRGB(255,180,50),ESP_Far=Color3.fromRGB(255,255,80),ESP_VeryFar=Color3.fromRGB(80,255,80),
+        RadarBg=Color3.fromRGB(14,12,18),RadarBorder=Color3.fromRGB(120,60,160),
     },
     Blue = {
         WindowBg=Color3.fromRGB(22,26,34),WindowBorder=Color3.fromRGB(60,120,220),
@@ -307,27 +273,13 @@ local currentThemeName = "Purple"
 local Theme = {}
 for k,v in pairs(ThemePresets.Purple) do Theme[k] = v end
 
--- Keep legacy keys mapped for ESP/aimbot logic that still references them
 local function syncLegacyKeys()
-    Theme.Background      = Theme.ContentBg
-    Theme.BackgroundDark  = Theme.SidebarBg
-    Theme.BackgroundLight = Theme.CardBg
-    Theme.AccentPink      = Theme.CardHeaderBg
-    Theme.AccentBright    = Theme.TextAccent
-    Theme.AccentDark      = Theme.TabBgActive
-    Theme.Accent          = Theme.CardHeaderBg
-    Theme.Border          = Theme.CardBorder
-    Theme.BorderLight     = Theme.EnumBg
-    Theme.TabActive       = Theme.TabTextActive
-    Theme.TabInactive     = Theme.TabText
-    Theme.TitleBar        = Theme.SidebarBg
-    Theme.CheckboxEnabled = Theme.ToggleOn
-    Theme.CheckboxDisabled= Theme.ToggleOff
-    Theme.SliderBackground= Theme.SliderTrack
-    Theme.TextPrimary     = Theme.TextPrimary
-    Theme.TextSecondary   = Theme.TextSecondary
-    Theme.TextDim         = Theme.TextDim
-    Theme.TextHeader      = Theme.TextAccent
+    Theme.Background=Theme.ContentBg; Theme.BackgroundDark=Theme.SidebarBg; Theme.BackgroundLight=Theme.CardBg
+    Theme.AccentPink=Theme.CardHeaderBg; Theme.AccentBright=Theme.TextAccent; Theme.AccentDark=Theme.TabBgActive
+    Theme.Accent=Theme.CardHeaderBg; Theme.Border=Theme.CardBorder; Theme.BorderLight=Theme.EnumBg
+    Theme.TabActive=Theme.TabTextActive; Theme.TabInactive=Theme.TabText; Theme.TitleBar=Theme.SidebarBg
+    Theme.CheckboxEnabled=Theme.ToggleOn; Theme.CheckboxDisabled=Theme.ToggleOff
+    Theme.SliderBackground=Theme.SliderTrack
 end
 
 local themeCallbacks = {}
@@ -347,7 +299,7 @@ local supportedGames = {
     [286090429]       = {name="Arsenal",                    espEnabled=true},
     [9157605735]      = {name="MiscGunTest-X",              espEnabled=false},
     [155615604]       = {name="PR",                         espEnabled=true},
-    [142823291]       = {name="Murder Mystery 2",           espEnabled=false, loadScript="https://raw.smokingscripts.org/vertex.lua",                                                                          scriptName="Vertex"},
+    [142823291]       = {name="Murder Mystery 2",           espEnabled=false, loadScript="https://raw.smokingscripts.org/vertex.lua",scriptName="Vertex"},
     [10449761463]     = {name="The Strongest Battlegrounds",espEnabled=false, loadScript="https://raw.githubusercontent.com/ATrainz/Phantasm/refs/heads/main/Games/TSB.lua",scriptName="Phantasm"},
     [104715542330896] = {name="BlockSpin",                  espEnabled=true,  noMovement=true},
 }
@@ -389,6 +341,7 @@ local Settings = {
     Aimbot={Enabled=false,Toggle=false,LockPart="Head",Smoothness=0.15,FOVRadius=150,ShowFOV=true,FOVOpacity=0.5,RequireLOS=true,Prediction=true,PredictionAmount=0.12,MaxDistance=500,MultiTarget=false},
     Crosshair={Enabled=false,Style="Cross",Size=10,Thickness=2,Gap=4,Color=Color3.fromRGB(255,255,255),OutlineEnabled=true,OutlineColor=Color3.fromRGB(0,0,0),OutlineThickness=1,CenterDot=false,CenterDotSize=4,Opacity=1.0,DynamicSpread=false,RainbowColor=false},
     Visuals={Fullbright=false,NoFog=false,CustomFOV=false,FOVAmount=70,ShowFPS=false,ShowVelocity=false},
+    -- FIX: SpeedMethod default is "WalkSpeed" to match the enum logic
     Movement={SpeedEnabled=false,Speed=16,SpeedMethod="WalkSpeed",JumpEnabled=false,JumpPower=50,BunnyHop=false,BunnyHopSpeed=30,Fly=false,FlySpeed=50},
     Combat={FastReload=false,FastFireRate=false,AlwaysAuto=false,NoSpread=false,NoRecoil=false},
     Misc={AntiAFK=false,AutoRejoin=false,AutoTPLoop=false,AutoTPLoopDelay=0.2,AutoTPTargetName="Nearest Enemy",ChatSpammer=false,ChatSpamMessage="Binxix Hub V7 on top",ChatSpamDelay=3},
@@ -486,18 +439,27 @@ local function isValidESPTarget(admin,target)
     if mode=="All (No Team Check)" then return true elseif mode=="All" then return true elseif mode=="Team" then return isSameTeam(admin,target) else return not isSameTeam(admin,target) end
 end
 local function isValidTarget(admin,target) if target==admin then return false end; if isSameTeam(admin,target) then return false end; return true end
+-- FIX PERF: Cache RaycastParams per local player character - rebuild only when character changes
+local _losRP = RaycastParams.new()
+_losRP.FilterType = Enum.RaycastFilterType.Exclude
+local _losCachedChar = nil
 local function hasLOS(admin,target)
     local ac=admin.Character; local tc=target.Character; if not ac or not tc then return false end
     local ah=ac:FindFirstChild("Head"); local th=tc:FindFirstChild("HumanoidRootPart"); if not ah or not th then return false end
-    local rp=RaycastParams.new(); rp.FilterType=Enum.RaycastFilterType.Exclude
-    -- Exclude ALL descendants of both characters so we don't self-hit or target-hit
-    local excludeList = {}
-    for _,p in ipairs(ac:GetDescendants()) do if p:IsA("BasePart") then table.insert(excludeList,p) end end
-    for _,p in ipairs(tc:GetDescendants()) do if p:IsA("BasePart") then table.insert(excludeList,p) end end
-    table.insert(excludeList, ac); table.insert(excludeList, tc)
-    rp.FilterDescendantsInstances = excludeList
-    local result = Workspace:Raycast(ah.Position, (th.Position - ah.Position), rp)
-    return result == nil
+    -- Only rebuild filter if our own character changed (not every call)
+    if ac ~= _losCachedChar then
+        _losCachedChar = ac
+        _losRP.FilterDescendantsInstances = {ac}
+    end
+    -- Target is excluded via FilterType=Exclude on just our char; we check if ray hits anything
+    -- Use a cheaper param set that only excludes local character
+    local result = Workspace:Raycast(ah.Position,(th.Position-ah.Position),_losRP)
+    -- If result hit target's own parts that's fine (means nothing in between)
+    if result == nil then return true end
+    local hitInst = result.Instance
+    -- Walk up to see if we hit the target character
+    local p = hitInst; while p do if p==tc then return true end; p=p.Parent end
+    return false
 end
 local function isInFOV(target,fovRadius)
     local cam=Workspace.CurrentCamera; if not cam then return false end
@@ -524,7 +486,6 @@ local function buildTargetList()
                 if th and hum and hum.Health>0 then
                     local dist=(myHRP.Position-th.Position).Magnitude
                     if dist<=Settings.Aimbot.MaxDistance then
-                        -- Respect LOS in target list too
                         if not Settings.Aimbot.RequireLOS or hasLOS(player,t) then
                             local part=tc:FindFirstChild(Settings.Aimbot.LockPart) or tc:FindFirstChild("Head") or th
                             if part then local sp,on=cam:WorldToViewportPoint(part.Position); if on and sp.Z>0 then local sc=cam.ViewportSize/2; local d=(Vector2.new(sp.X,sp.Y)-sc).Magnitude; if d<=Settings.Aimbot.FOVRadius then table.insert(targetList,{player=t,dist=dist,screenDist=d}) end end end
@@ -695,21 +656,29 @@ local function stopAutoTPLoop() Settings.Misc.AutoTPLoop=false; autoTPTarget=nil
 local function showLoader()
     local gui=UILib.newScreenGui("BinxixLoader_V7")
     UILib.newFrame(gui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=0.15,BorderSizePixel=0,ZIndex=200})
-    local card=UILib.newFrame(gui,{Size=UDim2.new(0,320,0,280),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,0),BackgroundColor3=Color3.fromRGB(13,13,16),BorderSizePixel=0,ZIndex=201})
+    -- Card is 300px tall to fit all sections without overlap
+    local card=UILib.newFrame(gui,{Size=UDim2.new(0,320,0,300),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,0),BackgroundColor3=Color3.fromRGB(13,13,16),BorderSizePixel=0,ZIndex=201})
     UILib.corner(card,12); UILib.stroke(card,Color3.fromRGB(48,48,58),1.2)
     local function L(p,t,pos,sz,col,ts,font,align,zi) return UILib.newLabel(p,{Text=t,Size=sz,Position=pos,TextColor3=col,TextSize=ts,Font=font or Enum.Font.Gotham,TextXAlignment=align or Enum.TextXAlignment.Center,ZIndex=zi or 202}) end
-    local ring=UILib.newFrame(card,{Size=UDim2.new(0,64,0,64),AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,20),BackgroundColor3=Color3.fromRGB(22,22,28),BorderSizePixel=0,ZIndex=202}); UILib.corner(ring,100); UILib.stroke(ring,Color3.fromRGB(60,55,72),1.5)
+    -- Logo ring: Y=18 H=64 -> ends 82
+    local ring=UILib.newFrame(card,{Size=UDim2.new(0,64,0,64),AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,18),BackgroundColor3=Color3.fromRGB(22,22,28),BorderSizePixel=0,ZIndex=202}); UILib.corner(ring,100); UILib.stroke(ring,Color3.fromRGB(60,55,72),1.5)
     local letter=L(ring,"B",UDim2.new(0,0,0,0),UDim2.new(1,0,1,0),Color3.fromRGB(200,140,255),28,Enum.Font.GothamBold,Enum.TextXAlignment.Center,203); letter.TextYAlignment=Enum.TextYAlignment.Center
-    L(card,"binxix hub",UDim2.new(0,0,0,96),UDim2.new(0.54,0,0,18),Color3.fromRGB(220,220,228),15,Enum.Font.GothamBold,Enum.TextXAlignment.Right)
-    L(card,"  v"..SCRIPT_VERSION_DISPLAY,UDim2.new(0.55,0,0,96),UDim2.new(0.45,0,0,18),Color3.fromRGB(90,210,130),14,Enum.Font.GothamBold,Enum.TextXAlignment.Left)
-    local gr=UILib.newFrame(card,{Size=UDim2.new(1,-24,0,40),Position=UDim2.new(0,12,0,124),BackgroundColor3=Color3.fromRGB(58,46,88),BorderSizePixel=0,ZIndex=202}); UILib.corner(gr,8); UILib.stroke(gr,Color3.fromRGB(108,78,178),1.2)
-    L(gr,"guns.lol",UDim2.new(0,12,0,0),UDim2.new(0.55,0,1,0),Color3.fromRGB(220,215,240),14,Enum.Font.GothamBold,Enum.TextXAlignment.Left,203)
-    L(gr,"@binxix",UDim2.new(0.55,0,0,0),UDim2.new(0.4,0,1,0),Color3.fromRGB(160,120,255),13,Enum.Font.Gotham,Enum.TextXAlignment.Right,203)
-    local statusLbl=L(card,"Initializing...",UDim2.new(0,16,0,178),UDim2.new(1,-32,0,14),Color3.fromRGB(140,140,155),11,Enum.Font.Gotham,Enum.TextXAlignment.Left)
-    local track=UILib.newFrame(card,{Size=UDim2.new(1,-24,0,4),Position=UDim2.new(0,12,0,198),BackgroundColor3=Color3.fromRGB(30,30,36),BorderSizePixel=0,ZIndex=202}); UILib.corner(track,4)
+    -- Title row: Y=92 H=18 -> ends 110
+    L(card,"binxix hub",UDim2.new(0,0,0,92),UDim2.new(0.54,0,0,18),Color3.fromRGB(220,220,228),15,Enum.Font.GothamBold,Enum.TextXAlignment.Right)
+    L(card,"  v"..SCRIPT_VERSION_DISPLAY,UDim2.new(0.55,0,0,92),UDim2.new(0.45,0,0,18),Color3.fromRGB(90,210,130),14,Enum.Font.GothamBold,Enum.TextXAlignment.Left)
+    -- guns.lol bar: Y=118 H=36 -> ends 154
+    local gr=UILib.newFrame(card,{Size=UDim2.new(1,-24,0,36),Position=UDim2.new(0,12,0,118),BackgroundColor3=Color3.fromRGB(58,46,88),BorderSizePixel=0,ZIndex=202}); UILib.corner(gr,8); UILib.stroke(gr,Color3.fromRGB(108,78,178),1.2)
+    L(gr,"guns.lol",UDim2.new(0,12,0,0),UDim2.new(0.55,0,1,0),Color3.fromRGB(220,215,240),13,Enum.Font.GothamBold,Enum.TextXAlignment.Left,203)
+    L(gr,"@binxix",UDim2.new(0.55,0,0,0),UDim2.new(0.4,0,1,0),Color3.fromRGB(160,120,255),12,Enum.Font.Gotham,Enum.TextXAlignment.Right,203)
+    -- Stage label: Y=162 H=14 -> ends 176
+    local statusLbl=L(card,"Initializing...",UDim2.new(0,12,0,162),UDim2.new(1,-80,0,14),Color3.fromRGB(140,140,155),11,Enum.Font.Gotham,Enum.TextXAlignment.Left)
+    -- Pct label: Y=162 H=14, right side — same row as status, no overlap with bar
+    local pctLbl=L(card,"0%",UDim2.new(1,-44,0,162),UDim2.new(0,36,0,14),Color3.fromRGB(175,100,220),11,Enum.Font.GothamBold,Enum.TextXAlignment.Right)
+    -- Progress track: Y=182 H=6 -> ends 188 (clear gap below status row)
+    local track=UILib.newFrame(card,{Size=UDim2.new(1,-24,0,6),Position=UDim2.new(0,12,0,182),BackgroundColor3=Color3.fromRGB(30,30,36),BorderSizePixel=0,ZIndex=202}); UILib.corner(track,4)
     local fill=UILib.newFrame(track,{Size=UDim2.new(0,0,1,0),BackgroundColor3=Color3.fromRGB(175,100,220),BorderSizePixel=0,ZIndex=203}); UILib.corner(fill,4)
-    local pctLbl=L(card,"0%",UDim2.new(1,-52,0,192),UDim2.new(0,40,0,16),Color3.fromRGB(175,100,220),11,Enum.Font.GothamBold,Enum.TextXAlignment.Right)
-    local infoLbl=L(card,"",UDim2.new(0,12,0,218),UDim2.new(1,-24,0,44),Color3.fromRGB(100,100,112),10,Enum.Font.Gotham,Enum.TextXAlignment.Left); infoLbl.TextWrapped=true; infoLbl.TextYAlignment=Enum.TextYAlignment.Top
+    -- Info label: Y=196 H=52 -> ends 248 (well within 300px card)
+    local infoLbl=L(card,"",UDim2.new(0,12,0,196),UDim2.new(1,-24,0,52),Color3.fromRGB(100,100,112),10,Enum.Font.Gotham,Enum.TextXAlignment.Left); infoLbl.TextWrapped=true; infoLbl.TextYAlignment=Enum.TextYAlignment.Top
     if not checkIntegrity() then infoLbl.Text="Warning: Script integrity check failed. This may be a tampered version."; infoLbl.TextColor3=Color3.fromRGB(255,120,60)
     elseif isWeakExecutor() then infoLbl.Text="Note: Weak executor detected ("..getExecutorName().."). Some features may not work as expected."; infoLbl.TextColor3=Color3.fromRGB(255,200,60)
     else infoLbl.Text="Executor: "..getExecutorName().." | Integrity: OK"; infoLbl.TextColor3=Color3.fromRGB(80,200,120) end
@@ -724,7 +693,7 @@ local function showLoader()
 end
 
 -- ====================================================================
--- MAIN GUI  —  Card + Sidebar layout
+-- MAIN GUI
 -- ====================================================================
 local function createGUI()
     showLoader()
@@ -732,92 +701,259 @@ local function createGUI()
     local screenGui = UILib.newScreenGui("BinxixHub_V7")
     notifScreenGui = screenGui
 
-    -- ----------------------------------------------------------------
     -- FOV CIRCLE
-    -- ----------------------------------------------------------------
     local fovCircle=UILib.newFrame(screenGui,{Name="FOVCircle",Size=UDim2.new(0,300,0,300),Position=UDim2.new(0.5,0,0.5,0),AnchorPoint=Vector2.new(0.5,0.5),BackgroundTransparency=1,Visible=false}); UILib.corner(fovCircle,100)
     local fovStroke=UILib.stroke(fovCircle,Theme.CardHeaderBg,1); fovStroke.Transparency=0.5
-    table.insert(allConnections,RunService.RenderStepped:Connect(function()
-        if isUnloading or _G.BinxixUnloaded then return end
-        fovCircle.Size=UDim2.new(0,Settings.Aimbot.FOVRadius*2,0,Settings.Aimbot.FOVRadius*2); fovCircle.Visible=Settings.Aimbot.Enabled and Settings.Aimbot.ShowFOV; fovStroke.Transparency=1-Settings.Aimbot.FOVOpacity
-    end))
 
-    -- ----------------------------------------------------------------
-    -- TRACER + SKELETON + ARROW pools (same as before, just re-parented)
-    -- ----------------------------------------------------------------
+    -- TRACER POOL
     local tracerCont=UILib.newFrame(screenGui,{Name="TracerCont",Size=UDim2.new(1,0,1,0),BackgroundTransparency=1})
     local TPOOL=30; local tPool={}; local tIdx=0
     for i=1,TPOOL do local l=Instance.new("Frame"); l.BackgroundColor3=Color3.new(1,1,1); l.BorderSizePixel=0; l.AnchorPoint=Vector2.new(0.5,0.5); l.Visible=false; l.Parent=tracerCont; tPool[i]=l end
     local function resetTracers() for i=1,tIdx do tPool[i].Visible=false end; tIdx=0 end
     local function getTracerLine() tIdx=tIdx+1; if tIdx>TPOOL then tIdx=TPOOL; return nil end; return tPool[tIdx] end
-    local function updateTracers()
-        resetTracers(); if not Settings.ESP.Enabled or not Settings.ESP.TracerEnabled then return end
-        local myChar=player.Character; if not myChar then return end; local myHRP=myChar:FindFirstChild("HumanoidRootPart"); if not myHRP then return end
-        local cam=Workspace.CurrentCamera; if not cam then return end; local ss=cam.ViewportSize
-        local sp if Settings.ESP.TracerOrigin=="Bottom" then sp=Vector2.new(ss.X/2,ss.Y) elseif Settings.ESP.TracerOrigin=="Center" then sp=Vector2.new(ss.X/2,ss.Y/2) elseif Settings.ESP.TracerOrigin=="Mouse" then local m=player:GetMouse(); sp=Vector2.new(m.X,m.Y) else sp=Vector2.new(ss.X/2,ss.Y) end
-        for _,target in ipairs(Players:GetPlayers()) do if target~=player and isValidESPTarget(player,target) then local tc=target.Character; if tc then local th=tc:FindFirstChild("HumanoidRootPart"); if th then local spos,on=cam:WorldToViewportPoint(th.Position); if on and spos.Z>0 then local line=getTracerLine(); if not line then break end; local tp=Vector2.new(spos.X,spos.Y); local dist=(myHRP.Position-th.Position).Magnitude; local col=Settings.ESP.RainbowColor and Color3.fromHSV(tick()%5/5,1,1) or getESPColor(dist); local thick=Settings.ESP.TracerThickness or 1; local ld=(tp-sp).Magnitude; local center=(sp+tp)/2; local angle=math.atan2(tp.Y-sp.Y,tp.X-sp.X); line.Size=UDim2.new(0,ld,0,thick); line.Position=UDim2.new(0,center.X,0,center.Y); line.Rotation=math.deg(angle); line.BackgroundColor3=col; line.Visible=true end end end end end
-    end
 
+    -- SKELETON POOL
     local skelCont=UILib.newFrame(screenGui,{Name="SkelCont",Size=UDim2.new(1,0,1,0),BackgroundTransparency=1})
     local SPOOL=200; local sPool={}; local sIdx=0
     for i=1,SPOOL do local l=Instance.new("Frame"); l.BackgroundColor3=Color3.new(1,1,1); l.BorderSizePixel=0; l.AnchorPoint=Vector2.new(0.5,0.5); l.Visible=false; l.Parent=skelCont; sPool[i]=l end
     local function resetSkel() for i=1,sIdx do sPool[i].Visible=false end; sIdx=0 end
     local function getSkelLine() sIdx=sIdx+1; if sIdx>SPOOL then sIdx=SPOOL; return nil end; return sPool[sIdx] end
-    local function updateSkeleton()
-        resetSkel(); if not Settings.ESP.Enabled or not Settings.ESP.SkeletonEnabled then return end
-        local myChar=player.Character; if not myChar then return end; local myHRP=myChar:FindFirstChild("HumanoidRootPart"); if not myHRP then return end; local cam=Workspace.CurrentCamera; if not cam then return end
-        for _,target in ipairs(Players:GetPlayers()) do if target~=player and isValidESPTarget(player,target) then local tc=target.Character; if tc then local th=tc:FindFirstChild("HumanoidRootPart"); local dist=th and (myHRP.Position-th.Position).Magnitude or 1000; if dist<=500 then local col=Settings.ESP.RainbowColor and Color3.fromHSV(tick()%5/5,1,1) or getESPColor(dist); local conns=tc:FindFirstChild("UpperTorso") and SKEL_R15 or SKEL_R6; local thick=Settings.ESP.SkeletonThickness or 1; for _,c in ipairs(conns) do local p1=tc:FindFirstChild(c[1]); local p2=tc:FindFirstChild(c[2]); if p1 and p2 then local s1=cam:WorldToViewportPoint(p1.Position); local s2=cam:WorldToViewportPoint(p2.Position); if s1.Z>0 and s2.Z>0 then local line=getSkelLine(); if not line then break end; local a=Vector2.new(s1.X,s1.Y); local b=Vector2.new(s2.X,s2.Y); local ld=(b-a).Magnitude; local ctr=(a+b)/2; local ang=math.atan2(b.Y-a.Y,b.X-a.X); line.Size=UDim2.new(0,ld,0,thick); line.Position=UDim2.new(0,ctr.X,0,ctr.Y); line.Rotation=math.deg(ang); line.BackgroundColor3=col; line.Visible=true end end end end end end end
+
+    -- PERF FIX: Arrow pool — pre-allocate arrows, never destroy/create per frame
+    local arrowCont=UILib.newFrame(screenGui,{Name="ArrowCont",Size=UDim2.new(1,0,1,0),BackgroundTransparency=1})
+    local APOOL=20; local aPool={}
+    for i=1,APOOL do
+        local sz=20
+        local c=UILib.newFrame(arrowCont,{Size=UDim2.new(0,sz+30,0,sz+16),BackgroundTransparency=1,AnchorPoint=Vector2.new(0.5,0.5),Visible=false})
+        local a=Instance.new("ImageLabel"); a.Size=UDim2.new(0,sz,0,sz); a.Position=UDim2.new(0.5,0,0,4); a.AnchorPoint=Vector2.new(0.5,0); a.BackgroundTransparency=1; a.Image="rbxassetid://3926305904"; a.ImageRectOffset=Vector2.new(764,764); a.ImageRectSize=Vector2.new(36,36); a.Parent=c
+        local dl=UILib.newLabel(c,{Size=UDim2.new(1,0,0,12),Position=UDim2.new(0,0,1,-12),Text="",TextSize=10,Font=Enum.Font.GothamBold,TextStrokeTransparency=0.4,TextStrokeColor3=Color3.fromRGB(0,0,0)})
+        aPool[i]={container=c,arrow=a,distLabel=dl,inUse=false}
     end
+    local aActiveCount=0
+    local function resetArrows() for i=1,aActiveCount do aPool[i].container.Visible=false; aPool[i].inUse=false end; aActiveCount=0 end
+    local function getArrow() aActiveCount=aActiveCount+1; if aActiveCount>APOOL then aActiveCount=APOOL; return nil end; local ad=aPool[aActiveCount]; ad.container.Visible=true; return ad end
 
-    local arrowCont=UILib.newFrame(screenGui,{Name="ArrowCont",Size=UDim2.new(1,0,1,0),BackgroundTransparency=1}); local offArrows={}
-    local function createArrow(col,sz) local c=UILib.newFrame(arrowCont,{Size=UDim2.new(0,sz+30,0,sz+16),BackgroundTransparency=1,AnchorPoint=Vector2.new(0.5,0.5)}); local a=Instance.new("ImageLabel"); a.Size=UDim2.new(0,sz,0,sz); a.Position=UDim2.new(0.5,0,0,4); a.AnchorPoint=Vector2.new(0.5,0); a.BackgroundTransparency=1; a.Image="rbxassetid://3926305904"; a.ImageRectOffset=Vector2.new(764,764); a.ImageRectSize=Vector2.new(36,36); a.ImageColor3=col; a.Parent=c; local dl=UILib.newLabel(c,{Size=UDim2.new(1,0,0,12),Position=UDim2.new(0,0,1,-12),Text="",TextColor3=col,TextSize=10,Font=Enum.Font.GothamBold,TextStrokeTransparency=0.4,TextStrokeColor3=Color3.fromRGB(0,0,0)}); return {container=c,arrow=a,distLabel=dl} end
-    local function updateArrows()
-        for _,ad in pairs(offArrows) do if ad and ad.container then ad.container:Destroy() end end; offArrows={}
-        if not Settings.ESP.Enabled or not Settings.ESP.OffscreenArrows then return end
-        local myChar=player.Character; if not myChar then return end; local myHRP=myChar:FindFirstChild("HumanoidRootPart"); if not myHRP then return end; local cam=Workspace.CurrentCamera; if not cam then return end; local ss=cam.ViewportSize; local sc=Vector2.new(ss.X/2,ss.Y/2); local pad=60
-        for _,target in ipairs(Players:GetPlayers()) do if target~=player and isValidESPTarget(player,target) then local tc=target.Character; if tc then local th=tc:FindFirstChild("HumanoidRootPart"); if th then local dist=(myHRP.Position-th.Position).Magnitude; if dist<=(Settings.ESP.ArrowDistance or 500) then local spos,on=cam:WorldToViewportPoint(th.Position); if not on or spos.Z<0 then local col=Settings.ESP.RainbowColor and Color3.fromHSV(tick()%5/5,1,1) or getESPColor(dist); local dir=(th.Position-cam.CFrame.Position); local fd=Vector3.new(dir.X,0,dir.Z).Unit; local cl=Vector3.new(cam.CFrame.LookVector.X,0,cam.CFrame.LookVector.Z).Unit; local cr=Vector3.new(cam.CFrame.RightVector.X,0,cam.CFrame.RightVector.Z).Unit; local ang=math.atan2(fd:Dot(cr),fd:Dot(cl)); local rx=ss.X/2-pad; local ry=ss.Y/2-pad; local ax=math.clamp(sc.X+math.sin(ang)*rx,pad,ss.X-pad); local ay=math.clamp(sc.Y-math.cos(ang)*ry,pad,ss.Y-pad); local ad=createArrow(col,Settings.ESP.ArrowSize or 20); ad.container.Position=UDim2.new(0,ax,0,ay); ad.arrow.Rotation=math.deg(ang); ad.distLabel.Text=math.floor(dist).."m"; ad.distLabel.TextColor3=col; offArrows[target.UserId]=ad end end end end end end
-    end
-
-    local targetHL=nil
-    local function updateTargetMarker()
-        if currentTarget and currentTarget.Character and isTracking then if not targetHL then targetHL=Instance.new("Highlight"); targetHL.Name="BinxixLockMarker"; targetHL.FillColor=Theme.CardHeaderBg; targetHL.FillTransparency=0.7; targetHL.OutlineColor=Theme.TextAccent; targetHL.OutlineTransparency=0; targetHL.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop end; targetHL.Parent=currentTarget.Character
-        else if targetHL then targetHL.Parent=nil end end
-    end
-
-    table.insert(allConnections,RunService.RenderStepped:Connect(function()
-        if isUnloading or _G.BinxixUnloaded then return end
-        updateESP(); updateTracers(); updateSkeleton(); updateArrows(); updateTargetMarker()
-    end))
-    table.insert(allConnections,Players.PlayerRemoving:Connect(function(t) if espObjects[t.UserId] then removeESP(t) end end))
-
-    -- ----------------------------------------------------------------
-    -- RADAR
-    -- ----------------------------------------------------------------
+    -- RADAR GUI
     local radarGui=UILib.newFrame(screenGui,{Name="Radar",Size=UDim2.new(0,Settings.Radar.Size,0,Settings.Radar.Size),Position=UDim2.new(0,10,1,-Settings.Radar.Size-10),BackgroundColor3=Theme.RadarBg,BorderSizePixel=0,Visible=false,ClipsDescendants=true}); UILib.corner(radarGui,100); UILib.stroke(radarGui,Theme.RadarBorder,1.5)
     local selfDot=UILib.newFrame(radarGui,{Size=UDim2.new(0,6,0,6),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,0),BackgroundColor3=Settings.Radar.SelfColor,BorderSizePixel=0,ZIndex=3}); UILib.corner(selfDot,100)
     UILib.newFrame(radarGui,{Size=UDim2.new(1,0,0,1),Position=UDim2.new(0,0,0.5,0),BackgroundColor3=Color3.fromRGB(255,255,255),BackgroundTransparency=0.85,BorderSizePixel=0,ZIndex=2})
     UILib.newFrame(radarGui,{Size=UDim2.new(0,1,1,0),Position=UDim2.new(0.5,0,0,0),BackgroundColor3=Color3.fromRGB(255,255,255),BackgroundTransparency=0.85,BorderSizePixel=0,ZIndex=2})
     local radarDots={}
-    local function updateRadar()
-        radarGui.Visible=Settings.Radar.Enabled; if not Settings.Radar.Enabled then return end
-        local myChar=player.Character; if not myChar then return end; local myHRP=myChar:FindFirstChild("HumanoidRootPart"); if not myHRP then return end; local cam=Workspace.CurrentCamera; if not cam then return end
-        local activeIds={}; for _,t in ipairs(Players:GetPlayers()) do activeIds[t.UserId]=true end
-        for uid,dot in pairs(radarDots) do if not activeIds[uid] then dot:Destroy(); radarDots[uid]=nil end end
-        local camYaw=math.atan2(-cam.CFrame.LookVector.X,-cam.CFrame.LookVector.Z); local rh=Settings.Radar.Size/2; local scale=Settings.Radar.Scale; local range=Settings.Radar.Range
-        for _,target in ipairs(Players:GetPlayers()) do if target~=player then local tc=target.Character; if tc then local th=tc:FindFirstChild("HumanoidRootPart"); if th then local rel=th.Position-myHRP.Position; local dist=Vector3.new(rel.X,0,rel.Z).Magnitude; if dist<=range then local ang=math.atan2(rel.X,rel.Z)-camYaw; local nx=math.sin(ang)*(dist/range)*rh*scale; local ny=-math.cos(ang)*(dist/range)*rh*scale; local px=math.clamp(rh+nx,4,Settings.Radar.Size-4); local py=math.clamp(rh+ny,4,Settings.Radar.Size-4); if not radarDots[target.UserId] then local dot=UILib.newFrame(radarGui,{Size=UDim2.new(0,5,0,5),AnchorPoint=Vector2.new(0.5,0.5),BorderSizePixel=0,ZIndex=4}); UILib.corner(dot,100); radarDots[target.UserId]=dot end; local dot=radarDots[target.UserId]; dot.BackgroundColor3=isSameTeam(player,target) and Settings.Radar.TeamColor or Settings.Radar.EnemyColor; dot.Position=UDim2.new(0,px,0,py) else if radarDots[target.UserId] then radarDots[target.UserId].Position=UDim2.new(0,-99,0,-99) end end end end end end
-    end
-    table.insert(allConnections,RunService.RenderStepped:Connect(function() if isUnloading or _G.BinxixUnloaded then return end; updateRadar() end))
+
+    local targetHL=nil
 
     -- ================================================================
-    -- MAIN WINDOW  —  NEW CARD + SIDEBAR LAYOUT
+    -- PERF FIX: ONE unified RenderStepped loop for ALL visual drawing.
+    -- Was: 10 separate RenderStepped connections each with their own overhead.
+    -- Now: single loop, GetPlayers() called ONCE, WorldToViewportPoint cached
+    --      per player per frame so ESP + tracer + skeleton all share the result.
     -- ================================================================
-    -- Overall window
+    table.insert(allConnections,RunService.RenderStepped:Connect(function()
+        if isUnloading or _G.BinxixUnloaded then return end
+
+        local espOn   = Settings.ESP.Enabled
+        local tracerOn= espOn and Settings.ESP.TracerEnabled
+        local skelOn  = espOn and Settings.ESP.SkeletonEnabled
+        local arrowOn = espOn and Settings.ESP.OffscreenArrows
+        local radarOn = Settings.Radar.Enabled
+        local fovOn   = Settings.Aimbot.Enabled and Settings.Aimbot.ShowFOV
+
+        -- FOV circle
+        fovCircle.Size=UDim2.new(0,Settings.Aimbot.FOVRadius*2,0,Settings.Aimbot.FOVRadius*2)
+        fovCircle.Visible=fovOn
+        if fovOn then fovStroke.Transparency=1-Settings.Aimbot.FOVOpacity end
+
+        -- Target lock highlight
+        if currentTarget and currentTarget.Character and isTracking then
+            if not targetHL then targetHL=Instance.new("Highlight"); targetHL.Name="BinxixLockMarker"; targetHL.FillColor=Theme.CardHeaderBg; targetHL.FillTransparency=0.7; targetHL.OutlineColor=Theme.TextAccent; targetHL.OutlineTransparency=0; targetHL.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop end
+            targetHL.Parent=currentTarget.Character
+        else if targetHL then targetHL.Parent=nil end end
+
+        -- Nothing drawing? Early out
+        if not espOn and not radarOn then return end
+
+        local myChar=player.Character; if not myChar then return end
+        local myHRP=myChar:FindFirstChild("HumanoidRootPart"); if not myHRP then return end
+        local cam=Workspace.CurrentCamera; if not cam then return end
+        local camCF=cam.CFrame
+        local ss=cam.ViewportSize
+        local myPos=myHRP.Position
+
+        -- PERF FIX: Call GetPlayers() ONCE per frame, reuse the table everywhere
+        local allPlayers=Players:GetPlayers()
+
+        -- Reset draw pools
+        resetTracers()
+        resetSkel()
+        resetArrows()
+
+        -- Tracer origin
+        local tracerSP
+        if tracerOn then
+            if Settings.ESP.TracerOrigin=="Bottom" then tracerSP=Vector2.new(ss.X/2,ss.Y)
+            elseif Settings.ESP.TracerOrigin=="Center" then tracerSP=Vector2.new(ss.X/2,ss.Y/2)
+            elseif Settings.ESP.TracerOrigin=="Mouse" then local m=player:GetMouse(); tracerSP=Vector2.new(m.X,m.Y)
+            else tracerSP=Vector2.new(ss.X/2,ss.Y) end
+        end
+
+        -- Radar setup
+        local camYaw,rh,radarScale,radarRange
+        if radarOn then
+            radarGui.Visible=true
+            camYaw=math.atan2(-camCF.LookVector.X,-camCF.LookVector.Z)
+            rh=Settings.Radar.Size/2; radarScale=Settings.Radar.Scale; radarRange=Settings.Radar.Range
+            -- Clean up disconnected radar dots
+            local activeIds={}; for _,t in ipairs(allPlayers) do activeIds[t.UserId]=true end
+            for uid,dot in pairs(radarDots) do if not activeIds[uid] then dot:Destroy(); radarDots[uid]=nil end end
+        else
+            radarGui.Visible=false
+        end
+
+        local rainbowCol = (espOn and Settings.ESP.RainbowColor) and Color3.fromHSV(tick()%5/5,1,1) or nil
+
+        -- Main per-player loop — single pass for ESP + tracer + skeleton + arrows + radar
+        for _,target in ipairs(allPlayers) do
+            if target==player then continue end
+
+            local tc=target.Character; if not tc then continue end
+            local th=tc:FindFirstChild("HumanoidRootPart"); if not th then continue end
+            local thead=tc:FindFirstChild("Head")
+            local thum=tc:FindFirstChild("Humanoid")
+            local tPos=th.Position
+            local dist=(myPos-tPos).Magnitude
+            local col=rainbowCol or getESPColor(dist)
+
+            -- ---- RADAR (doesn't need viewport projection) ----
+            if radarOn then
+                local rel=tPos-myPos
+                local flatDist=Vector3.new(rel.X,0,rel.Z).Magnitude
+                if flatDist<=radarRange then
+                    local ang=math.atan2(rel.X,rel.Z)-camYaw
+                    local nx=math.sin(ang)*(flatDist/radarRange)*rh*radarScale
+                    local ny=-math.cos(ang)*(flatDist/radarRange)*rh*radarScale
+                    local px=math.clamp(rh+nx,4,Settings.Radar.Size-4)
+                    local py=math.clamp(rh+ny,4,Settings.Radar.Size-4)
+                    if not radarDots[target.UserId] then
+                        local dot=UILib.newFrame(radarGui,{Size=UDim2.new(0,5,0,5),AnchorPoint=Vector2.new(0.5,0.5),BorderSizePixel=0,ZIndex=4}); UILib.corner(dot,100); radarDots[target.UserId]=dot
+                    end
+                    local dot=radarDots[target.UserId]
+                    dot.BackgroundColor3=isSameTeam(player,target) and Settings.Radar.TeamColor or Settings.Radar.EnemyColor
+                    dot.Position=UDim2.new(0,px,0,py)
+                else
+                    if radarDots[target.UserId] then radarDots[target.UserId].Position=UDim2.new(0,-99,0,-99) end
+                end
+            end
+
+            if not espOn then continue end
+            local isESPTarget=isValidESPTarget(player,target)
+            if not isESPTarget then
+                if espObjects[target.UserId] then removeESP(target) end
+                continue
+            end
+
+            -- PERF FIX: Project HRP to viewport ONCE, reuse for tracer + arrows + ESP billboard
+            local hrpSP,hrpOn=cam:WorldToViewportPoint(tPos)
+            local hrpV2=hrpOn and hrpSP.Z>0 and Vector2.new(hrpSP.X,hrpSP.Y) or nil
+
+            -- ---- ESP BILLBOARD ----
+            if thead and thum then
+                if not espObjects[target.UserId] then createESP(target) end
+                local d=espObjects[target.UserId]
+                if d and d.billboard then
+                    d.billboard.Adornee=thead; d.billboard.Parent=tc; d.billboard.Enabled=true
+                    if d.nameLabel then d.nameLabel.Visible=Settings.ESP.NameEnabled; d.nameLabel.Text=target.DisplayName; d.nameLabel.TextColor3=col end
+                    if d.distLabel then d.distLabel.Visible=Settings.ESP.DistanceEnabled; d.distLabel.Text=string.format("[%dm]",math.floor(dist)); d.distLabel.TextColor3=col end
+                    if d.healthLabel then d.healthLabel.Visible=Settings.ESP.HealthEnabled; d.healthLabel.Text=string.format("%d HP",math.floor(thum.Health)); d.healthLabel.TextColor3=getHealthColor(thum.Health/thum.MaxHealth) end
+                    if Settings.ESP.BoxEnabled then
+                        if not d.boxHighlight then d.boxHighlight=Instance.new("Highlight"); d.boxHighlight.Name="BinxixBoxESP"; d.boxHighlight.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop end
+                        d.boxHighlight.FillTransparency=Settings.ESP.ChamsEnabled and Settings.ESP.ChamsFillTransparency or 1
+                        if Settings.ESP.ChamsEnabled then d.boxHighlight.FillColor=col end
+                        d.boxHighlight.OutlineTransparency=Settings.ESP.OutlineEnabled and 0 or 1
+                        d.boxHighlight.OutlineColor=(Settings.ESP.RainbowOutline and Color3.fromHSV(tick()%5/5,1,1)) or col
+                        d.boxHighlight.Parent=tc; d.boxHighlight.Enabled=true
+                    else if d.boxHighlight then d.boxHighlight.Enabled=false end end
+                end
+            end
+
+            -- ---- TRACER ----
+            if tracerOn and hrpV2 then
+                local line=getTracerLine()
+                if line then
+                    local thick=Settings.ESP.TracerThickness
+                    local ld=(hrpV2-tracerSP).Magnitude
+                    local center=(tracerSP+hrpV2)/2
+                    local angle=math.atan2(hrpV2.Y-tracerSP.Y,hrpV2.X-tracerSP.X)
+                    line.Size=UDim2.new(0,ld,0,thick); line.Position=UDim2.new(0,center.X,0,center.Y)
+                    line.Rotation=math.deg(angle); line.BackgroundColor3=col; line.Visible=true
+                end
+            end
+
+            -- ---- OFFSCREEN ARROWS ----
+            if arrowOn and dist<=(Settings.ESP.ArrowDistance) then
+                if not hrpOn or hrpSP.Z<0 then
+                    local ad=getArrow()
+                    if ad then
+                        local sz=Settings.ESP.ArrowSize
+                        local pad=60; local rx=ss.X/2-pad; local ry=ss.Y/2-pad
+                        local sc2=Vector2.new(ss.X/2,ss.Y/2)
+                        local dir=tPos-camCF.Position
+                        local fd=Vector3.new(dir.X,0,dir.Z).Unit
+                        local cl=Vector3.new(camCF.LookVector.X,0,camCF.LookVector.Z).Unit
+                        local cr=Vector3.new(camCF.RightVector.X,0,camCF.RightVector.Z).Unit
+                        local ang=math.atan2(fd:Dot(cr),fd:Dot(cl))
+                        local ax=math.clamp(sc2.X+math.sin(ang)*rx,pad,ss.X-pad)
+                        local ay=math.clamp(sc2.Y-math.cos(ang)*ry,pad,ss.Y-pad)
+                        ad.container.Size=UDim2.new(0,sz+30,0,sz+16)
+                        ad.container.Position=UDim2.new(0,ax,0,ay)
+                        ad.arrow.Size=UDim2.new(0,sz,0,sz)
+                        ad.arrow.Rotation=math.deg(ang); ad.arrow.ImageColor3=col
+                        ad.distLabel.Text=math.floor(dist).."m"; ad.distLabel.TextColor3=col
+                    end
+                end
+            end
+
+            -- ---- SKELETON ---- (project per bone — unavoidable, but only when enabled)
+            if skelOn and dist<=500 then
+                local skelCol=rainbowCol or getESPColor(dist)
+                local conns=tc:FindFirstChild("UpperTorso") and SKEL_R15 or SKEL_R6
+                local thick=Settings.ESP.SkeletonThickness
+                for _,c in ipairs(conns) do
+                    local p1=tc:FindFirstChild(c[1]); local p2=tc:FindFirstChild(c[2])
+                    if p1 and p2 then
+                        local s1=cam:WorldToViewportPoint(p1.Position)
+                        local s2=cam:WorldToViewportPoint(p2.Position)
+                        if s1.Z>0 and s2.Z>0 then
+                            local line=getSkelLine(); if not line then break end
+                            local a=Vector2.new(s1.X,s1.Y); local b=Vector2.new(s2.X,s2.Y)
+                            local ld=(b-a).Magnitude; local ctr=(a+b)/2
+                            local ang=math.atan2(b.Y-a.Y,b.X-a.X)
+                            line.Size=UDim2.new(0,ld,0,thick); line.Position=UDim2.new(0,ctr.X,0,ctr.Y)
+                            line.Rotation=math.deg(ang); line.BackgroundColor3=skelCol; line.Visible=true
+                        end
+                    end
+                end
+            end
+        end -- end player loop
+
+        -- Hide ESP for players no longer valid
+        for uid,_ in pairs(espObjects) do
+            local found=false
+            for _,t in ipairs(allPlayers) do if t.UserId==uid then found=true; break end end
+            if not found then
+                if espObjects[uid] and espObjects[uid].billboard then espObjects[uid].billboard.Enabled=false end
+            end
+        end
+    end))
+
+    table.insert(allConnections,Players.PlayerRemoving:Connect(function(t) if espObjects[t.UserId] then removeESP(t) end end))
+
+    -- MAIN WINDOW
     local WIN_W, WIN_H   = 580, 480
     local SIDEBAR_W      = 110
     local CONTENT_W      = WIN_W - SIDEBAR_W
     local CONTENT_PAD    = 8
-    local CARD_W         = (CONTENT_W - CONTENT_PAD*3) / 2   -- two columns
-    local ROW_H          = 30   -- height of each row inside a card
+    local CARD_W         = math.floor((CONTENT_W - CONTENT_PAD*3) / 2)
+    local ROW_H          = 30
     local CARD_HEADER_H  = 24
 
     local mainFrame = UILib.newFrame(screenGui,{
@@ -825,9 +961,8 @@ local function createGUI()
         Position=UDim2.new(0.5,-WIN_W/2,0.5,-WIN_H/2),
         BackgroundColor3=Theme.WindowBg,BorderSizePixel=0,Active=true,Visible=true
     })
-    UILib.corner(mainFrame,8)
-    UILib.stroke(mainFrame,Theme.WindowBorder,1.5)
-    table.insert(themeCallbacks,function() mainFrame.BackgroundColor3=Theme.WindowBg; for _,s in ipairs(mainFrame:GetDescendants()) do if s:IsA("UIStroke") and s.Parent==mainFrame then s.Color=Theme.WindowBorder end end end)
+    UILib.corner(mainFrame,8); UILib.stroke(mainFrame,Theme.WindowBorder,1.5)
+    table.insert(themeCallbacks,function() mainFrame.BackgroundColor3=Theme.WindowBg end)
 
     -- Drag
     local dragging,dragStart,startPos2=false,nil,nil
@@ -838,144 +973,102 @@ local function createGUI()
         if dragging and input.UserInputType==Enum.UserInputType.MouseMovement then local d=input.Position-dragStart; mainFrame.Position=UDim2.new(startPos2.X.Scale,startPos2.X.Offset+d.X,startPos2.Y.Scale,startPos2.Y.Offset+d.Y) end
     end))
 
-    -- ----------------------------------------------------------------
     -- SIDEBAR
-    -- ----------------------------------------------------------------
-    local sidebar = UILib.newFrame(mainFrame,{
-        Name="Sidebar",Size=UDim2.new(0,SIDEBAR_W,1,0),
-        BackgroundColor3=Theme.SidebarBg,BorderSizePixel=0,ClipsDescendants=true
-    })
+    local sidebar = UILib.newFrame(mainFrame,{Name="Sidebar",Size=UDim2.new(0,SIDEBAR_W,1,0),BackgroundColor3=Theme.SidebarBg,BorderSizePixel=0,ClipsDescendants=true})
     UILib.corner(sidebar,8)
-    -- Right edge sharp (only left side rounded)
     UILib.newFrame(sidebar,{Size=UDim2.new(0,8,1,0),Position=UDim2.new(1,-8,0,0),BackgroundColor3=Theme.SidebarBg,BorderSizePixel=0})
     UILib.stroke(sidebar,Theme.SidebarBorder,1)
-
-    -- Logo area
-    local logoArea = UILib.newFrame(sidebar,{Size=UDim2.new(1,0,0,52),BackgroundColor3=Theme.SidebarBg,BorderSizePixel=0})
-    UILib.newLabel(logoArea,{Size=UDim2.new(1,-8,1,0),Position=UDim2.new(0,8,0,0),Text="BINXIX",TextColor3=Theme.LogoText,TextSize=18,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left})
-    UILib.newLabel(logoArea,{Size=UDim2.new(1,-8,0,13),Position=UDim2.new(0,8,0,30),Text="v"..SCRIPT_VERSION_DISPLAY.." | "..currentGameData.name,TextColor3=Theme.TextDim,TextSize=9,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
-    -- Divider
-    UILib.newFrame(sidebar,{Size=UDim2.new(1,-16,0,1),Position=UDim2.new(0,8,0,52),BackgroundColor3=Theme.SidebarBorder,BorderSizePixel=0})
-
-    -- Tab list
-    local tabList = UILib.newFrame(sidebar,{Size=UDim2.new(1,0,1,-58),Position=UDim2.new(0,0,0,58),BackgroundTransparency=1,BorderSizePixel=0})
+    local logoArea = UILib.newFrame(sidebar,{Size=UDim2.new(1,0,0,54),BackgroundColor3=Theme.SidebarBg,BorderSizePixel=0})
+    -- BINXIX: fixed height 24px at Y=6, subtitle 14px at Y=32 — no overlap
+    UILib.newLabel(logoArea,{Size=UDim2.new(1,-8,0,24),Position=UDim2.new(0,8,0,6),Text="BINXIX",TextColor3=Theme.LogoText,TextSize=18,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Center})
+    UILib.newLabel(logoArea,{Size=UDim2.new(1,-8,0,14),Position=UDim2.new(0,8,0,32),Text="v"..SCRIPT_VERSION_DISPLAY.." | "..currentGameData.name,TextColor3=Theme.TextDim,TextSize=9,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
+    UILib.newFrame(sidebar,{Size=UDim2.new(1,-16,0,1),Position=UDim2.new(0,8,0,54),BackgroundColor3=Theme.SidebarBorder,BorderSizePixel=0})
+    local tabList = UILib.newFrame(sidebar,{Size=UDim2.new(1,0,1,-60),Position=UDim2.new(0,0,0,60),BackgroundTransparency=1,BorderSizePixel=0})
     local layout = Instance.new("UIListLayout"); layout.SortOrder=Enum.SortOrder.LayoutOrder; layout.Padding=UDim.new(0,2); layout.Parent=tabList
     local pad2 = Instance.new("UIPadding"); pad2.PaddingLeft=UDim.new(0,6); pad2.PaddingRight=UDim.new(0,6); pad2.PaddingTop=UDim.new(0,4); pad2.Parent=tabList
 
-    local tabs        = {"General","Aimbot","ESP","Crosshair","Radar","Report","Settings"}
-    local tabIcons    = {General="*",Aimbot="+",ESP="@",Crosshair="x",Radar="O",Report="!",Settings="~"}
-    local tabBtns     = {}
-    local tabPages    = {}
-    local tabBuilt    = {}
-    local activeTab   = "General"
+    local tabs     = {"General","Aimbot","ESP","Crosshair","Radar","Report","Settings"}
+    local tabIcons = {General="*",Aimbot="+",ESP="@",Crosshair="x",Radar="O",Report="!",Settings="~"}
+    local tabBtns  = {}
+    local tabPages = {}
+    local tabBuilt = {}
+    local activeTab= "General"
 
-    -- ----------------------------------------------------------------
     -- CONTENT AREA
-    -- ----------------------------------------------------------------
-    local contentArea = UILib.newFrame(mainFrame,{
-        Name="ContentArea",
-        Size=UDim2.new(0,CONTENT_W,1,-2),
-        Position=UDim2.new(0,SIDEBAR_W,0,1),
-        BackgroundColor3=Theme.ContentBg,BorderSizePixel=0,ClipsDescendants=true
-    })
+    local contentArea = UILib.newFrame(mainFrame,{Name="ContentArea",Size=UDim2.new(0,CONTENT_W,1,-2),Position=UDim2.new(0,SIDEBAR_W,0,1),BackgroundColor3=Theme.ContentBg,BorderSizePixel=0,ClipsDescendants=true})
     UILib.corner(contentArea,8)
     UILib.newFrame(contentArea,{Size=UDim2.new(0,8,1,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=Theme.ContentBg,BorderSizePixel=0})
-
-    -- Close button
-    local closeBtn=UILib.newButton(mainFrame,{
-        Size=UDim2.new(0,22,0,22),Position=UDim2.new(1,-26,0,4),
-        BackgroundColor3=Color3.fromRGB(180,50,50),BorderSizePixel=0,
-        Text="x",TextColor3=Color3.fromRGB(255,255,255),TextSize=13,Font=Enum.Font.GothamBold,ZIndex=5
-    },function() mainFrame.Visible=false end); UILib.corner(closeBtn,5)
+    local closeBtn=UILib.newButton(mainFrame,{Size=UDim2.new(0,22,0,22),Position=UDim2.new(1,-26,0,4),BackgroundColor3=Color3.fromRGB(180,50,50),BorderSizePixel=0,Text="x",TextColor3=Color3.fromRGB(255,255,255),TextSize=13,Font=Enum.Font.GothamBold,ZIndex=10},function() mainFrame.Visible=false end); UILib.corner(closeBtn,5)
     closeBtn.MouseEnter:Connect(function() closeBtn.BackgroundColor3=Color3.fromRGB(220,60,60) end)
     closeBtn.MouseLeave:Connect(function() closeBtn.BackgroundColor3=Color3.fromRGB(180,50,50) end)
 
     -- ================================================================
-    -- CARD-BASED WIDGET SYSTEM
+    -- WIDGET SYSTEM
     -- ================================================================
-    -- Each card = colored header + dark body with rows
-    -- Widgets: toggle switch, slider, enum row, keybind, button row
-
-    -- Creates a card and returns its body frame + a function to add rows
     local function makeCard(parent, title, x, y, w, h_body)
-        local wrapper = UILib.newFrame(parent,{
-            Size=UDim2.new(0,w,0,CARD_HEADER_H+h_body),
-            Position=UDim2.new(0,x,0,y),
-            BackgroundColor3=Theme.CardBg,BorderSizePixel=0
-        }); UILib.corner(wrapper,6); UILib.stroke(wrapper,Theme.CardBorder,1)
-
-        local header = UILib.newFrame(wrapper,{
-            Size=UDim2.new(1,0,0,CARD_HEADER_H),
-            BackgroundColor3=Theme.CardHeaderBg,BorderSizePixel=0
-        }); UILib.corner(header,6)
-        -- flatten bottom corners of header
+        local wrapper = UILib.newFrame(parent,{Size=UDim2.new(0,w,0,CARD_HEADER_H+h_body),Position=UDim2.new(0,x,0,y),BackgroundColor3=Theme.CardBg,BorderSizePixel=0}); UILib.corner(wrapper,6); UILib.stroke(wrapper,Theme.CardBorder,1)
+        local header = UILib.newFrame(wrapper,{Size=UDim2.new(1,0,0,CARD_HEADER_H),BackgroundColor3=Theme.CardHeaderBg,BorderSizePixel=0}); UILib.corner(header,6)
         UILib.newFrame(header,{Size=UDim2.new(1,0,0,8),Position=UDim2.new(0,0,1,-8),BackgroundColor3=Theme.CardHeaderBg,BorderSizePixel=0})
-
-        UILib.newLabel(header,{
-            Size=UDim2.new(1,-8,1,0),Position=UDim2.new(0,8,0,0),
-            Text=title,TextColor3=Theme.CardHeaderText,TextSize=12,Font=Enum.Font.GothamBold,
-            TextXAlignment=Enum.TextXAlignment.Left
-        })
-
-        local body = UILib.newFrame(wrapper,{
-            Name="Body",Size=UDim2.new(1,0,0,h_body),Position=UDim2.new(0,0,0,CARD_HEADER_H),
-            BackgroundTransparency=1,BorderSizePixel=0,ClipsDescendants=true
-        })
+        UILib.newLabel(header,{Size=UDim2.new(1,-8,1,0),Position=UDim2.new(0,8,0,0),Text=title,TextColor3=Theme.CardHeaderText,TextSize=12,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left})
+        local body = UILib.newFrame(wrapper,{Name="Body",Size=UDim2.new(1,0,0,h_body),Position=UDim2.new(0,0,0,CARD_HEADER_H),BackgroundTransparency=1,BorderSizePixel=0,ClipsDescendants=true})
         local bodyPad=Instance.new("UIPadding"); bodyPad.PaddingLeft=UDim.new(0,8); bodyPad.PaddingRight=UDim.new(0,8); bodyPad.PaddingTop=UDim.new(0,4); bodyPad.Parent=body
-
-        table.insert(themeCallbacks,function()
-            wrapper.BackgroundColor3=Theme.CardBg; header.BackgroundColor3=Theme.CardHeaderBg
-        end)
-
+        table.insert(themeCallbacks,function() wrapper.BackgroundColor3=Theme.CardBg; header.BackgroundColor3=Theme.CardHeaderBg end)
         return body, wrapper
     end
 
-    -- TOGGLE SWITCH ROW
-    -- returns {setValue, getValue}
+    -- FIX: Toggle now properly returns handle and has correct click zone
     local function addToggleRow(body, label, yOff, default, callback)
-        local row = UILib.newFrame(body,{
-            Size=UDim2.new(1,0,0,ROW_H),Position=UDim2.new(0,0,0,yOff),
-            BackgroundTransparency=1,BorderSizePixel=0
-        })
+        local row = UILib.newFrame(body,{Size=UDim2.new(1,0,0,ROW_H),Position=UDim2.new(0,0,0,yOff),BackgroundTransparency=1,BorderSizePixel=0})
         UILib.newLabel(row,{Size=UDim2.new(1,-44,1,0),Text=label,TextColor3=Theme.TextPrimary,TextSize=11,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
-
-        -- Toggle pill
         local PILL_W,PILL_H = 34,16
-        local pill = UILib.newFrame(row,{
-            Size=UDim2.new(0,PILL_W,0,PILL_H),Position=UDim2.new(1,-PILL_W-2,0.5,-PILL_H/2),
-            BackgroundColor3=default and Theme.ToggleOn or Theme.ToggleOff,BorderSizePixel=0
-        }); UILib.corner(pill,100)
-        local knob = UILib.newFrame(pill,{
-            Size=UDim2.new(0,PILL_H-4,0,PILL_H-4),
-            Position=default and UDim2.new(1,-(PILL_H-2),0.5,-(PILL_H-4)/2) or UDim2.new(0,2,0.5,-(PILL_H-4)/2),
-            BackgroundColor3=Theme.ToggleKnob,BorderSizePixel=0
-        }); UILib.corner(knob,100)
-
+        local pill = UILib.newFrame(row,{Size=UDim2.new(0,PILL_W,0,PILL_H),Position=UDim2.new(1,-PILL_W-2,0.5,-PILL_H/2),BackgroundColor3=default and Theme.ToggleOn or Theme.ToggleOff,BorderSizePixel=0}); UILib.corner(pill,100)
+        local knob = UILib.newFrame(pill,{Size=UDim2.new(0,PILL_H-4,0,PILL_H-4),Position=default and UDim2.new(1,-(PILL_H-2),0.5,-(PILL_H-4)/2) or UDim2.new(0,2,0.5,-(PILL_H-4)/2),BackgroundColor3=Theme.ToggleKnob,BorderSizePixel=0}); UILib.corner(knob,100)
         local enabled = default
-        UILib.newButton(row,{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text=""},function()
+        -- FIX: Use row-level button so click zone doesn't conflict
+        UILib.newButton(row,{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="",ZIndex=2},function()
             if isUnloading or _G.BinxixUnloaded then return end
             enabled = not enabled
             UILib.tween(pill,0.15,{BackgroundColor3=enabled and Theme.ToggleOn or Theme.ToggleOff}):Play()
             UILib.tween(knob,0.15,{Position=enabled and UDim2.new(1,-(PILL_H-2),0.5,-(PILL_H-4)/2) or UDim2.new(0,2,0.5,-(PILL_H-4)/2)}):Play()
             if callback then callback(enabled) end
         end)
-
-        table.insert(themeCallbacks,function()
-            pill.BackgroundColor3=enabled and Theme.ToggleOn or Theme.ToggleOff
-        end)
-
+        table.insert(themeCallbacks,function() pill.BackgroundColor3=enabled and Theme.ToggleOn or Theme.ToggleOff end)
         return {
-            setValue=function(v)
-                enabled=v
-                pill.BackgroundColor3=v and Theme.ToggleOn or Theme.ToggleOff
-                knob.Position=v and UDim2.new(1,-(PILL_H-2),0.5,-(PILL_H-4)/2) or UDim2.new(0,2,0.5,-(PILL_H-4)/2)
-            end,
+            setValue=function(v) enabled=v; pill.BackgroundColor3=v and Theme.ToggleOn or Theme.ToggleOff; knob.Position=v and UDim2.new(1,-(PILL_H-2),0.5,-(PILL_H-4)/2) or UDim2.new(0,2,0.5,-(PILL_H-4)/2) end,
             getValue=function() return enabled end,
             row=row
         }
     end
 
-    -- SLIDER ROW
+    -- CRASH FIX: ONE shared slider dispatcher instead of one InputChanged per slider.
+    -- Per-slider connections held references to destroyed track frames after tab rebuilds
+    -- causing "attempt to index nil with BackgroundColor3" spam every mouse move.
+    local activeSlider = nil
+
+    table.insert(allConnections,UserInputService.InputEnded:Connect(function(inp)
+        if inp.UserInputType==Enum.UserInputType.MouseButton1 then activeSlider=nil end
+    end))
+    table.insert(allConnections,UserInputService.InputChanged:Connect(function(inp)
+        if not activeSlider or inp.UserInputType~=Enum.UserInputType.MouseMovement then return end
+        if isUnloading or _G.BinxixUnloaded then activeSlider=nil; return end
+        local s=activeSlider
+        -- Guard ALL fields: track, fill, knob may be destroyed after tab rebuild
+        local ok, err = pcall(function()
+            if not s.track or not s.track.Parent then activeSlider=nil; return end
+            if not s.fill or not s.fill.Parent then activeSlider=nil; return end
+            if not s.knob or not s.knob.Parent then activeSlider=nil; return end
+            local mx=player:GetMouse().X
+            local rx=math.clamp((mx-s.track.AbsolutePosition.X)/math.max(s.track.AbsoluteSize.X,1),0,1)
+            local cur
+            if s.max<=1 then cur=math.floor((s.min+rx*(s.max-s.min))*100)/100
+            else cur=math.floor(s.min+rx*(s.max-s.min)+0.5) end
+            s.fill.Size=UDim2.new(rx,0,1,0); s.knob.Position=UDim2.new(rx,0,0.5,0)
+            if s.valLbl and s.valLbl.Parent then s.valLbl.Text=tostring(cur) end
+            if s.callback then s.callback(cur) end
+        end)
+        if not ok then activeSlider=nil end
+    end))
+
     local function addSliderRow(body, label, yOff, min, max, default, callback)
         local row = UILib.newFrame(body,{Size=UDim2.new(1,0,0,ROW_H+8),Position=UDim2.new(0,0,0,yOff),BackgroundTransparency=1,BorderSizePixel=0})
         UILib.newLabel(row,{Size=UDim2.new(0.55,0,0,14),Text=label,TextColor3=Theme.TextSecondary,TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
@@ -983,38 +1076,25 @@ local function createGUI()
         local track=UILib.newFrame(row,{Size=UDim2.new(1,0,0,4),Position=UDim2.new(0,0,0,18),BackgroundColor3=Theme.SliderTrack,BorderSizePixel=0}); UILib.corner(track,4)
         local fill=UILib.newFrame(track,{Size=UDim2.new((default-min)/(max-min),0,1,0),BackgroundColor3=Theme.SliderFill,BorderSizePixel=0}); UILib.corner(fill,4)
         local knob=UILib.newFrame(track,{Size=UDim2.new(0,10,0,10),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new((default-min)/(max-min),0,0.5,0),BackgroundColor3=Theme.SliderKnob,BorderSizePixel=0}); UILib.corner(knob,100)
-        local cur=default; local drag=false
-        UILib.newButton(row,{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text=""},nil).MouseButton1Down:Connect(function() drag=true end)
-        table.insert(allConnections,UserInputService.InputEnded:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end end))
-        table.insert(allConnections,RunService.RenderStepped:Connect(function()
-            if isUnloading or _G.BinxixUnloaded or not drag then return end
-            local mx=player:GetMouse().X; local rx=math.clamp((mx-track.AbsolutePosition.X)/track.AbsoluteSize.X,0,1)
-            if max<=1 then cur=math.floor((min+rx*(max-min))*100)/100 else cur=math.floor(min+rx*(max-min)+0.5) end
-            fill.Size=UDim2.new(rx,0,1,0); knob.Position=UDim2.new(rx,0,0.5,0); valLbl.Text=tostring(cur)
-            if callback then callback(cur) end
-        end))
+        UILib.newButton(row,{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text=""},nil).MouseButton1Down:Connect(function()
+            if isUnloading or _G.BinxixUnloaded then return end
+            activeSlider={track=track,fill=fill,knob=knob,valLbl=valLbl,min=min,max=max,callback=callback}
+        end)
         return row
     end
 
-    -- ENUM (multi-button) ROW — matches the ENUM1 ENUM2 ENUM3 style in the image
+    -- FIX: Enum row height corrected from ROW_H+22 to ROW_H+26
     local function addEnumRow(body, label, yOff, options, default, callback)
-        local ROW2 = ROW_H + 22
+        local ROW2 = ROW_H + 26
         local row = UILib.newFrame(body,{Size=UDim2.new(1,0,0,ROW2),Position=UDim2.new(0,0,0,yOff),BackgroundTransparency=1,BorderSizePixel=0})
         UILib.newLabel(row,{Size=UDim2.new(1,0,0,14),Text=label,TextColor3=Theme.TextSecondary,TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
         local btnRowW = CARD_W - 18
-        local perBtn = math.floor(btnRowW / math.max(#options, 1)) - 1
+        local perBtn = math.floor(btnRowW / math.max(#options,1)) - 1
         local selected = default
         local btns = {}
         for i,opt in ipairs(options) do
             local isActive = opt==default
-            local eb=UILib.newButton(row,{
-                Size=UDim2.new(0,perBtn,0,18),
-                Position=UDim2.new(0,(i-1)*(perBtn+2),0,16),
-                BackgroundColor3=isActive and Theme.EnumBgActive or Theme.EnumBg,
-                BorderSizePixel=0,Text=opt,
-                TextColor3=isActive and Theme.EnumTextActive or Theme.EnumText,
-                TextSize=9,Font=Enum.Font.GothamBold
-            },function()
+            local eb=UILib.newButton(row,{Size=UDim2.new(0,perBtn,0,18),Position=UDim2.new(0,(i-1)*(perBtn+2),0,16),BackgroundColor3=isActive and Theme.EnumBgActive or Theme.EnumBg,BorderSizePixel=0,Text=opt,TextColor3=isActive and Theme.EnumTextActive or Theme.EnumText,TextSize=9,Font=Enum.Font.GothamBold},function()
                 if isUnloading or _G.BinxixUnloaded then return end
                 selected=opt
                 for _,b in ipairs(btns) do b.BackgroundColor3=Theme.EnumBg; b.TextColor3=Theme.EnumText end
@@ -1026,69 +1106,41 @@ local function createGUI()
         return row
     end
 
-    -- KEYBIND ROW
     local waitingForAnyKey = false
     local function addKeybindRow(body, label, yOff, default, callback)
         local row = UILib.newFrame(body,{Size=UDim2.new(1,0,0,ROW_H),Position=UDim2.new(0,0,0,yOff),BackgroundTransparency=1,BorderSizePixel=0})
-        UILib.newLabel(row,{Size=UDim2.new(0.55,0,1,0),Text=label,TextColor3=Theme.TextSecondary,TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
-        local kbBtn=UILib.newButton(row,{
-            Size=UDim2.new(0,48,0,18),Position=UDim2.new(1,-50,0.5,-9),
-            BackgroundColor3=Theme.KeybindBg,BorderSizePixel=0,
-            Text=default.Name,TextColor3=Theme.KeybindText,TextSize=9,Font=Enum.Font.GothamBold
-        }); UILib.corner(kbBtn,4)
+        UILib.newLabel(row,{Size=UDim2.new(1,-60,1,0),Text=label,TextColor3=Theme.TextSecondary,TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
+        local kbBtn=UILib.newButton(row,{Size=UDim2.new(0,48,0,18),Position=UDim2.new(1,-50,0.5,-9),BackgroundColor3=Theme.KeybindBg,BorderSizePixel=0,Text=default.Name,TextColor3=Theme.KeybindText,TextSize=9,Font=Enum.Font.GothamBold}); UILib.corner(kbBtn,4)
         local cur=default
-        kbBtn.MouseButton1Click:Connect(function()
-            if waitingForAnyKey then return end
-            waitingForAnyKey=true; kbBtn.Text="..."; kbBtn.TextColor3=Color3.fromRGB(255,255,100)
-        end)
+        kbBtn.MouseButton1Click:Connect(function() if waitingForAnyKey then return end; waitingForAnyKey=true; kbBtn.Text="..."; kbBtn.TextColor3=Color3.fromRGB(255,255,100) end)
         table.insert(allConnections,UserInputService.InputBegan:Connect(function(inp,gp)
-            if waitingForAnyKey and inp.UserInputType==Enum.UserInputType.Keyboard then
-                cur=inp.KeyCode; kbBtn.Text=inp.KeyCode.Name; kbBtn.TextColor3=Theme.KeybindText; waitingForAnyKey=false
-                if callback then callback(cur) end
-            end
+            if waitingForAnyKey and inp.UserInputType==Enum.UserInputType.Keyboard then cur=inp.KeyCode; kbBtn.Text=inp.KeyCode.Name; kbBtn.TextColor3=Theme.KeybindText; waitingForAnyKey=false; if callback then callback(cur) end end
         end))
         return row
     end
 
-    -- BUTTON ROW
     local function addButtonRow(body, text, yOff, callback, color)
-        local btn=UILib.newButton(body,{
-            Size=UDim2.new(1,0,0,22),Position=UDim2.new(0,0,0,yOff),
-            BackgroundColor3=color or Theme.CardHeaderBg,BorderSizePixel=0,
-            Text=text,TextColor3=Color3.fromRGB(255,255,255),TextSize=11,Font=Enum.Font.GothamBold
-        },callback); UILib.corner(btn,5)
+        local btn=UILib.newButton(body,{Size=UDim2.new(1,0,0,22),Position=UDim2.new(0,0,0,yOff),BackgroundColor3=color or Theme.CardHeaderBg,BorderSizePixel=0,Text=text,TextColor3=Color3.fromRGB(255,255,255),TextSize=11,Font=Enum.Font.GothamBold},callback); UILib.corner(btn,5)
         btn.MouseEnter:Connect(function() UILib.tween(btn,0.1,{BackgroundTransparency=0.25}):Play() end)
         btn.MouseLeave:Connect(function() UILib.tween(btn,0.1,{BackgroundTransparency=0}):Play() end)
         return btn
     end
 
-    -- LABEL ROW (small info/warn text)
     local function addInfoRow(body, text, yOff, color)
         return UILib.newLabel(body,{Size=UDim2.new(1,0,0,16),Position=UDim2.new(0,0,0,yOff),Text=text,TextColor3=color or Theme.TextDim,TextSize=9,Font=Enum.Font.SourceSansItalic,TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true})
     end
 
-    -- TEXTBOX ROW
     local function addInputRow(body, placeholder, yOff, default, callback)
-        local box=UILib.newBox(body,{
-            Size=UDim2.new(1,0,0,22),Position=UDim2.new(0,0,0,yOff),
-            BackgroundColor3=Theme.InputBg,BorderSizePixel=1,BorderColor3=Theme.InputBorder,
-            Text=default or "",PlaceholderText=placeholder,PlaceholderColor3=Theme.TextDim,
-            TextColor3=Theme.TextPrimary,TextSize=10,Font=Enum.Font.Gotham,
-            TextXAlignment=Enum.TextXAlignment.Left,ClearTextOnFocus=false
-        }); UILib.corner(box,4)
+        local box=UILib.newBox(body,{Size=UDim2.new(1,0,0,22),Position=UDim2.new(0,0,0,yOff),BackgroundColor3=Theme.InputBg,BorderSizePixel=1,BorderColor3=Theme.InputBorder,Text=default or "",PlaceholderText=placeholder,PlaceholderColor3=Theme.TextDim,TextColor3=Theme.TextPrimary,TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,ClearTextOnFocus=false}); UILib.corner(box,4)
         local pad=Instance.new("UIPadding"); pad.PaddingLeft=UDim.new(0,6); pad.Parent=box
         if callback then box.FocusLost:Connect(function() if box.Text~="" then callback(box.Text) end end) end
         return box
     end
 
-    -- SECTION DIVIDER (thin label)
     local function addDivider(body, yOff)
         UILib.newFrame(body,{Size=UDim2.new(1,0,0,1),Position=UDim2.new(0,0,0,yOff),BackgroundColor3=Theme.CardBorder,BorderSizePixel=0})
     end
 
-    -- ================================================================
-    -- SCROLL CONTENT  — wraps a scrolling frame inside the content area
-    -- ================================================================
     local function makePage(name)
         local pg = Instance.new("ScrollingFrame")
         pg.Name=name.."Page"; pg.Size=UDim2.new(1,0,1,0)
@@ -1099,110 +1151,84 @@ local function createGUI()
         return pg
     end
 
-    -- ================================================================
-    -- TAB BUTTON FACTORY
-    -- ================================================================
-    local function makeTabBtn(name, icon, index)
-        local btn=UILib.newButton(tabList,{
-            Name=name.."Tab",Size=UDim2.new(1,0,0,34),
-            BackgroundColor3=index==1 and Theme.TabBgActive or Theme.TabBg,
-            BorderSizePixel=0,Text="",LayoutOrder=index
-        }); UILib.corner(btn,6)
-
-        local iconLbl=UILib.newLabel(btn,{Size=UDim2.new(0,20,1,0),Position=UDim2.new(0,8,0,0),Text=icon,TextColor3=index==1 and Theme.TabIconActive or Theme.TabIcon,TextSize=14,Font=Enum.Font.GothamBold})
-        local nameLbl=UILib.newLabel(btn,{Size=UDim2.new(1,-32,1,0),Position=UDim2.new(0,30,0,0),Text=name,TextColor3=index==1 and Theme.TabTextActive or Theme.TabText,TextSize=11,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left})
-
-        btn.MouseEnter:Connect(function() if activeTab~=name then btn.BackgroundColor3=Theme.TabBgHover end end)
-        btn.MouseLeave:Connect(function() if activeTab~=name then btn.BackgroundColor3=Theme.TabBg end end)
-
-        table.insert(themeCallbacks,function()
-            if activeTab==name then btn.BackgroundColor3=Theme.TabBgActive; iconLbl.TextColor3=Theme.TabIconActive; nameLbl.TextColor3=Theme.TabTextActive
-            else btn.BackgroundColor3=Theme.TabBg; iconLbl.TextColor3=Theme.TabIcon; nameLbl.TextColor3=Theme.TabText end
-        end)
-
-        tabBtns[name]={btn=btn,icon=iconLbl,label=nameLbl}; tabBuilt[name]=false
-        return btn
-    end
-
-    -- Forward-declare so switchTab closure captures it correctly
-    local tabBuilders = {}
-
-    local function switchTab(name)
-        if isUnloading or _G.BinxixUnloaded then return end
-        local prev=activeTab; activeTab=name
-        -- Reset previous
-        if tabBtns[prev] then tabBtns[prev].btn.BackgroundColor3=Theme.TabBg; tabBtns[prev].icon.TextColor3=Theme.TabIcon; tabBtns[prev].label.TextColor3=Theme.TabText end
-        -- Activate new
-        if tabBtns[name] then tabBtns[name].btn.BackgroundColor3=Theme.TabBgActive; tabBtns[name].icon.TextColor3=Theme.TabIconActive; tabBtns[name].label.TextColor3=Theme.TabTextActive end
-        -- Build lazy
-        if not tabBuilt[name] and tabBuilders[name] then tabBuilders[name](tabPages[name]); tabBuilt[name]=true end
-        for n,pg in pairs(tabPages) do pg.Visible=n==name end
-    end
-
-    -- Create tab buttons + pages
-    for i,name in ipairs(tabs) do
-        local btn=makeTabBtn(name,tabIcons[name],i)
-        btn.MouseButton1Click:Connect(function() switchTab(name) end)
-        tabPages[name]=makePage(name)
-    end
-
-    -- ================================================================
-    -- HELPERS for two-column card layout inside a page
-    -- ================================================================
     local COL1_X = CONTENT_PAD
     local COL2_X = CONTENT_PAD + CARD_W + CONTENT_PAD
-    local function col1Y(page) -- tracks running Y for left column
+
+    local function col1Y(page)
         local n = page:FindFirstChild("_col1Y"); if not n then n=Instance.new("NumberValue"); n.Name="_col1Y"; n.Value=CONTENT_PAD; n.Parent=page end; return n
     end
     local function col2Y(page)
         local n = page:FindFirstChild("_col2Y"); if not n then n=Instance.new("NumberValue"); n.Name="_col2Y"; n.Value=CONTENT_PAD; n.Parent=page end; return n
     end
+
+    -- FIX: addCard properly calculates row heights matching actual widget heights
     local function addCard(page, col, title, rows)
-        -- rows = list of {type, ...args} descriptors
-        -- First measure total height
-        local h = 4 -- top padding
+        local h = 6  -- top padding (matches bodyPad PaddingTop=4 + breathing room)
         for _,r in ipairs(rows) do
-            if r[1]=="toggle" then h=h+ROW_H+2
-            elseif r[1]=="slider" then h=h+ROW_H+10
-            elseif r[1]=="enum" then h=h+ROW_H+24
-            elseif r[1]=="keybind" then h=h+ROW_H+2
-            elseif r[1]=="button" then h=h+24+4
-            elseif r[1]=="info" then h=h+18
-            elseif r[1]=="divider" then h=h+6
-            elseif r[1]=="input" then h=h+26
+            if r[1]=="toggle"  then h=h+ROW_H+2       -- widget=30, gap=2
+            elseif r[1]=="slider"  then h=h+ROW_H+10  -- widget=38, gap=2
+            elseif r[1]=="enum"    then h=h+ROW_H+28  -- widget=56, gap=2
+            elseif r[1]=="keybind" then h=h+ROW_H+2   -- widget=30, gap=2
+            elseif r[1]=="button"  then h=h+26         -- widget=22, gap=4 (matches step)
+            elseif r[1]=="info"    then h=h+18         -- widget=16, gap=2
+            elseif r[1]=="divider" then h=h+6          -- 1px line + padding
+            elseif r[1]=="input"   then h=h+26         -- widget=22, gap=4
             end
         end
+        h = h + 4  -- bottom padding so last row doesn't clip card border
         local x = col==1 and COL1_X or COL2_X
         local yVal = col==1 and col1Y(page) or col2Y(page)
         local body, wrapper = makeCard(page, title, x, yVal.Value, CARD_W, h)
         yVal.Value = yVal.Value + CARD_HEADER_H + h + CONTENT_PAD
 
-        -- Build rows
         local ry = 0
         for _,r in ipairs(rows) do
             local rtype = r[1]
-            if rtype=="toggle" then
-                local handle=addToggleRow(body,r[2],ry,r[3],r[4]); r.handle=handle; ry=ry+ROW_H+2
-            elseif rtype=="slider" then
-                addSliderRow(body,r[2],ry,r[3],r[4],r[5],r[6]); ry=ry+ROW_H+10
-            elseif rtype=="enum" then
-                addEnumRow(body,r[2],ry,r[3],r[4],r[5]); ry=ry+ROW_H+24
-            elseif rtype=="keybind" then
-                addKeybindRow(body,r[2],ry,r[3],r[4]); ry=ry+ROW_H+2
-            elseif rtype=="button" then
-                addButtonRow(body,r[2],ry,r[3],r[4]); ry=ry+26
-            elseif rtype=="info" then
-                addInfoRow(body,r[2],ry,r[3]); ry=ry+18
-            elseif rtype=="divider" then
-                addDivider(body,ry+2); ry=ry+6
-            elseif rtype=="input" then
-                addInputRow(body,r[2],ry,r[3],r[4]); ry=ry+26
+            if rtype=="toggle" then addToggleRow(body,r[2],ry,r[3],r[4]); ry=ry+ROW_H+2
+            elseif rtype=="slider" then addSliderRow(body,r[2],ry,r[3],r[4],r[5],r[6]); ry=ry+ROW_H+10
+            elseif rtype=="enum" then addEnumRow(body,r[2],ry,r[3],r[4],r[5]); ry=ry+ROW_H+28
+            elseif rtype=="keybind" then addKeybindRow(body,r[2],ry,r[3],r[4]); ry=ry+ROW_H+2
+            elseif rtype=="button" then addButtonRow(body,r[2],ry,r[3],r[4]); ry=ry+26
+            elseif rtype=="info" then addInfoRow(body,r[2],ry,r[3]); ry=ry+18
+            elseif rtype=="divider" then addDivider(body,ry+2); ry=ry+6
+            elseif rtype=="input" then addInputRow(body,r[2],ry,r[3],r[4]); ry=ry+26
             end
         end
-        -- Update canvas
         local maxY = math.max(col1Y(page).Value, col2Y(page).Value)
         page.CanvasSize = UDim2.new(0,0,0,maxY+CONTENT_PAD)
         return body, wrapper
+    end
+
+    -- TAB SYSTEM
+    local tabBuilders = {}
+
+    local function makeTabBtn(name, icon, index)
+        local btn=UILib.newButton(tabList,{Name=name.."Tab",Size=UDim2.new(1,0,0,34),BackgroundColor3=index==1 and Theme.TabBgActive or Theme.TabBg,BorderSizePixel=0,Text="",LayoutOrder=index}); UILib.corner(btn,6)
+        local iconLbl=UILib.newLabel(btn,{Size=UDim2.new(0,20,1,0),Position=UDim2.new(0,8,0,0),Text=icon,TextColor3=index==1 and Theme.TabIconActive or Theme.TabIcon,TextSize=14,Font=Enum.Font.GothamBold})
+        local nameLbl=UILib.newLabel(btn,{Size=UDim2.new(1,-32,1,0),Position=UDim2.new(0,30,0,0),Text=name,TextColor3=index==1 and Theme.TabTextActive or Theme.TabText,TextSize=11,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left})
+        btn.MouseEnter:Connect(function() if activeTab~=name then btn.BackgroundColor3=Theme.TabBgHover end end)
+        btn.MouseLeave:Connect(function() if activeTab~=name then btn.BackgroundColor3=Theme.TabBg end end)
+        table.insert(themeCallbacks,function()
+            if activeTab==name then btn.BackgroundColor3=Theme.TabBgActive; iconLbl.TextColor3=Theme.TabIconActive; nameLbl.TextColor3=Theme.TabTextActive
+            else btn.BackgroundColor3=Theme.TabBg; iconLbl.TextColor3=Theme.TabIcon; nameLbl.TextColor3=Theme.TabText end
+        end)
+        tabBtns[name]={btn=btn,icon=iconLbl,label=nameLbl}; tabBuilt[name]=false
+        return btn
+    end
+
+    local function switchTab(name)
+        if isUnloading or _G.BinxixUnloaded then return end
+        local prev=activeTab; activeTab=name
+        if tabBtns[prev] then tabBtns[prev].btn.BackgroundColor3=Theme.TabBg; tabBtns[prev].icon.TextColor3=Theme.TabIcon; tabBtns[prev].label.TextColor3=Theme.TabText end
+        if tabBtns[name] then tabBtns[name].btn.BackgroundColor3=Theme.TabBgActive; tabBtns[name].icon.TextColor3=Theme.TabIconActive; tabBtns[name].label.TextColor3=Theme.TabTextActive end
+        if not tabBuilt[name] and tabBuilders[name] then tabBuilders[name](tabPages[name]); tabBuilt[name]=true end
+        for n,pg in pairs(tabPages) do pg.Visible=n==name end
+    end
+
+    for i,name in ipairs(tabs) do
+        local btn=makeTabBtn(name,tabIcons[name],i)
+        btn.MouseButton1Click:Connect(function() switchTab(name) end)
+        tabPages[name]=makePage(name)
     end
 
     -- ================================================================
@@ -1212,58 +1238,107 @@ local function createGUI()
     -- ---- GENERAL ----
     tabBuilders["General"] = function(page)
         if not currentGameData.noMovement then
+            -- FIX: Speed toggle now properly applies/removes WalkSpeed immediately
             addCard(page,1,"Speed",{
-                {"toggle","Speed Boost",false,function(e) Settings.Movement.SpeedEnabled=e; if not e then local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=16 end end end end},
-                {"slider","Speed",16,200,16,function(v) Settings.Movement.Speed=v; if Settings.Movement.SpeedEnabled and Settings.Movement.SpeedMethod=="WalkSpeed" then local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=v end end end end},
-                {"enum","Method",{"Walk","CFrame","Vel"},"Walk",function(v) local m={Walk="WalkSpeed",CFrame="CFrame",Vel="Velocity"}; Settings.Movement.SpeedMethod=m[v] or "WalkSpeed" end},
+                {"toggle","Speed Boost",Settings.Movement.SpeedEnabled,function(e)
+                    Settings.Movement.SpeedEnabled=e
+                    if Settings.Movement.SpeedMethod=="WalkSpeed" then
+                        local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then
+                            h.WalkSpeed = e and Settings.Movement.Speed or 16
+                        end end
+                    end
+                    if not e then
+                        local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=16 end end
+                    end
+                end},
+                {"slider","Speed",1,300,Settings.Movement.Speed,function(v)
+                    Settings.Movement.Speed=v
+                    -- FIX: Apply immediately if enabled and using WalkSpeed method
+                    if Settings.Movement.SpeedEnabled and Settings.Movement.SpeedMethod=="WalkSpeed" then
+                        local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=v end end
+                    end
+                end},
+                -- FIX: Method enum maps correctly and resets/applies on switch
+                {"enum","Method",{"Walk","CFrame","Vel"},"Walk",function(v)
+                    local m={Walk="WalkSpeed",CFrame="CFrame",Vel="Velocity"}
+                    Settings.Movement.SpeedMethod=m[v] or "WalkSpeed"
+                    -- Reset WalkSpeed when switching away from WalkSpeed method
+                    local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then
+                        if Settings.Movement.SpeedMethod=="WalkSpeed" and Settings.Movement.SpeedEnabled then
+                            h.WalkSpeed=Settings.Movement.Speed
+                        else
+                            h.WalkSpeed=16
+                        end
+                    end end
+                end},
             })
             addCard(page,1,"Jump & Bhop",{
-                {"toggle","High Jump",false,function(e) Settings.Movement.JumpEnabled=e; local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.JumpPower=e and Settings.Movement.JumpPower or 50 end end end},
-                {"slider","Jump Power",50,300,50,function(v) Settings.Movement.JumpPower=v; if Settings.Movement.JumpEnabled then local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.JumpPower=v end end end end},
-                {"toggle","Bunny Hop",false,function(e) Settings.Movement.BunnyHop=e end},
-                {"slider","Bhop Speed",1,100,30,function(v) Settings.Movement.BunnyHopSpeed=v end},
+                {"toggle","High Jump",Settings.Movement.JumpEnabled,function(e)
+                    Settings.Movement.JumpEnabled=e
+                    local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.JumpPower=e and Settings.Movement.JumpPower or 50 end end
+                end},
+                {"slider","Jump Power",50,300,Settings.Movement.JumpPower,function(v)
+                    Settings.Movement.JumpPower=v
+                    if Settings.Movement.JumpEnabled then local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.JumpPower=v end end end
+                end},
+                {"toggle","Bunny Hop",Settings.Movement.BunnyHop,function(e) Settings.Movement.BunnyHop=e end},
+                {"slider","Bhop Speed",1,100,Settings.Movement.BunnyHopSpeed,function(v) Settings.Movement.BunnyHopSpeed=v end},
             })
             addCard(page,1,"Fly",{
-                {"toggle","Enable Fly",false,function(e) Settings.Movement.Fly=e; if e then startFly(); sendNotification("Fly","On - F to toggle",2) else stopFly(); sendNotification("Fly","Off",2) end end},
-                {"slider","Fly Speed",10,200,50,function(v) Settings.Movement.FlySpeed=v end},
+                {"toggle","Enable Fly",Settings.Movement.Fly,function(e)
+                    Settings.Movement.Fly=e
+                    if e then startFly(); sendNotification("Fly","On - F to toggle",2)
+                    else stopFly(); sendNotification("Fly","Off",2) end
+                end},
+                {"slider","Fly Speed",10,200,Settings.Movement.FlySpeed,function(v) Settings.Movement.FlySpeed=v end},
                 {"info","F key = toggle fly while enabled",Theme.TextDim},
             })
             addCard(page,1,"Auto TP",{
                 {"info","Risky - may cause ban",Theme.WarnColor},
-                {"toggle","Auto TP Loop",false,function(e)
+                {"toggle","Auto TP Loop",Settings.Misc.AutoTPLoop,function(e)
                     Settings.Misc.AutoTPLoop=e
                     if e then startAutoTPLoop(); sendNotification("Auto TP","On - "..Settings.Misc.AutoTPTargetName,2)
                     else stopAutoTPLoop(); sendNotification("Auto TP","Off",2) end
                 end},
-                {"slider","TP Delay (s)",0.05,2,0.2,function(v) Settings.Misc.AutoTPLoopDelay=v end},
+                {"slider","TP Delay (s)",0.05,2,Settings.Misc.AutoTPLoopDelay,function(v) Settings.Misc.AutoTPLoopDelay=v end},
                 {"keybind","TP Keybind",Settings.Keybinds.ToggleAutoTP,function(v) Settings.Keybinds.ToggleAutoTP=v end},
             })
         else
-            local b,_=makeCard(page,"Movement disabled",COL1_X,CONTENT_PAD,CARD_W,40)
+            local b,_=makeCard(page,"Movement Disabled",COL1_X,CONTENT_PAD,CARD_W,40)
             addInfoRow(b,"Movement mods disabled for "..currentGameData.name,0,Color3.fromRGB(255,100,100))
             col1Y(page).Value=col1Y(page).Value+CARD_HEADER_H+44+CONTENT_PAD
         end
 
         addCard(page,2,"Visuals",{
-            {"toggle","Fullbright",false,function(e) Settings.Visuals.Fullbright=e; if e then Lighting.Ambient=Color3.fromRGB(255,255,255); Lighting.Brightness=2; Lighting.OutdoorAmbient=Color3.fromRGB(255,255,255) else Lighting.Ambient=Color3.fromRGB(127,127,127); Lighting.Brightness=1; Lighting.OutdoorAmbient=Color3.fromRGB(127,127,127) end end},
-            {"toggle","No Fog",false,function(e) Settings.Visuals.NoFog=e; if e then enableNoFog() else disableNoFog() end end},
-            {"toggle","Custom FOV",false,function(e) Settings.Visuals.CustomFOV=e; local cam=Workspace.CurrentCamera; if cam then cam.FieldOfView=e and Settings.Visuals.FOVAmount or 70 end end},
-            {"slider","FOV Amount",30,120,70,function(v) Settings.Visuals.FOVAmount=v; if Settings.Visuals.CustomFOV then local cam=Workspace.CurrentCamera; if cam then cam.FieldOfView=v end end end},
-            {"toggle","Show FPS",false,function(e) Settings.Visuals.ShowFPS=e end},
-            {"toggle","Show Velocity",false,function(e) Settings.Visuals.ShowVelocity=e end},
+            {"toggle","Fullbright",Settings.Visuals.Fullbright,function(e)
+                Settings.Visuals.Fullbright=e
+                if e then Lighting.Ambient=Color3.fromRGB(255,255,255); Lighting.Brightness=2; Lighting.OutdoorAmbient=Color3.fromRGB(255,255,255)
+                else Lighting.Ambient=Color3.fromRGB(127,127,127); Lighting.Brightness=1; Lighting.OutdoorAmbient=Color3.fromRGB(127,127,127) end
+            end},
+            {"toggle","No Fog",Settings.Visuals.NoFog,function(e) Settings.Visuals.NoFog=e; if e then enableNoFog() else disableNoFog() end end},
+            {"toggle","Custom FOV",Settings.Visuals.CustomFOV,function(e)
+                Settings.Visuals.CustomFOV=e
+                local cam=Workspace.CurrentCamera; if cam then cam.FieldOfView=e and Settings.Visuals.FOVAmount or 70 end
+            end},
+            {"slider","FOV Amount",30,120,Settings.Visuals.FOVAmount,function(v)
+                Settings.Visuals.FOVAmount=v
+                if Settings.Visuals.CustomFOV then local cam=Workspace.CurrentCamera; if cam then cam.FieldOfView=v end end
+            end},
+            {"toggle","Show FPS",Settings.Visuals.ShowFPS,function(e) Settings.Visuals.ShowFPS=e end},
+            {"toggle","Show Velocity",Settings.Visuals.ShowVelocity,function(e) Settings.Visuals.ShowVelocity=e end},
         })
         addCard(page,2,"Gun Mods",{
-            {"info","May cause lag - WIP",Theme.WarnColor},
-            {"toggle","Fast Reload",false,function(e) Settings.Combat.FastReload=e; if e then applyAllGunMods() else restoreGunMod("ReloadTime"); restoreGunMod("EReloadTime") end end},
-            {"toggle","Fast Fire Rate",false,function(e) Settings.Combat.FastFireRate=e; if e then applyAllGunMods() else restoreGunMod("FireRate") end end},
-            {"toggle","Always Auto",false,function(e) Settings.Combat.AlwaysAuto=e; if e then applyAllGunMods() else restoreGunMod("Auto") end end},
-            {"toggle","No Spread",false,function(e) Settings.Combat.NoSpread=e; if e then applyAllGunMods() else restoreGunMod("Spread") end end},
-            {"toggle","No Recoil",false,function(e) Settings.Combat.NoRecoil=e; if e then applyAllGunMods() else restoreGunMod("Recoil") end end},
+            {"info","May not work on all games",Theme.WarnColor},
+            {"toggle","Fast Reload",Settings.Combat.FastReload,function(e) Settings.Combat.FastReload=e; if e then applyAllGunMods() else restoreGunMod("ReloadTime"); restoreGunMod("EReloadTime") end end},
+            {"toggle","Fast Fire Rate",Settings.Combat.FastFireRate,function(e) Settings.Combat.FastFireRate=e; if e then applyAllGunMods() else restoreGunMod("FireRate") end end},
+            {"toggle","Always Auto",Settings.Combat.AlwaysAuto,function(e) Settings.Combat.AlwaysAuto=e; if e then applyAllGunMods() else restoreGunMod("Auto") end end},
+            {"toggle","No Spread",Settings.Combat.NoSpread,function(e) Settings.Combat.NoSpread=e; if e then applyAllGunMods() else restoreGunMod("Spread") end end},
+            {"toggle","No Recoil",Settings.Combat.NoRecoil,function(e) Settings.Combat.NoRecoil=e; if e then applyAllGunMods() else restoreGunMod("Recoil") end end},
         })
         addCard(page,2,"Misc",{
-            {"toggle","Anti-AFK",false,function(e) Settings.Misc.AntiAFK=e end},
-            {"toggle","Chat Spammer",false,function(e) Settings.Misc.ChatSpammer=e end},
-            {"slider","Spam Delay (s)",0.5,10,3,function(v) Settings.Misc.ChatSpamDelay=v end},
+            {"toggle","Anti-AFK",Settings.Misc.AntiAFK,function(e) Settings.Misc.AntiAFK=e end},
+            {"toggle","Chat Spammer",Settings.Misc.ChatSpammer,function(e) Settings.Misc.ChatSpammer=e end},
+            {"slider","Spam Delay (s)",0.5,10,Settings.Misc.ChatSpamDelay,function(v) Settings.Misc.ChatSpamDelay=v end},
         })
         addCard(page,2,"Server",{
             {"button","Rejoin Server",function() pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId,game.JobId,player) end) end},
@@ -1274,23 +1349,26 @@ local function createGUI()
     -- ---- AIMBOT ----
     tabBuilders["Aimbot"] = function(page)
         addCard(page,1,"Aimbot",{
-            {"toggle","Enabled",false,function(e) Settings.Aimbot.Enabled=e; sendNotification("Aimbot",e and "On" or "Off",2) end},
-            {"toggle","Toggle Mode (RMB)",false,function(e) Settings.Aimbot.Toggle=e end},
-            {"toggle","Require LOS",true,function(e) Settings.Aimbot.RequireLOS=e end},
-            {"toggle","Prediction",true,function(e) Settings.Aimbot.Prediction=e end},
-            {"toggle","Multi-Target Cycle",false,function(e) Settings.Aimbot.MultiTarget=e end},
-            {"info","Tab key = cycle targets when Multi-Target on",Theme.TextDim},
+            {"toggle","Enabled",Settings.Aimbot.Enabled,function(e) Settings.Aimbot.Enabled=e; sendNotification("Aimbot",e and "On" or "Off",2) end},
+            {"toggle","Toggle Mode (RMB)",Settings.Aimbot.Toggle,function(e) Settings.Aimbot.Toggle=e end},
+            {"toggle","Require LOS",Settings.Aimbot.RequireLOS,function(e) Settings.Aimbot.RequireLOS=e end},
+            {"toggle","Prediction",Settings.Aimbot.Prediction,function(e) Settings.Aimbot.Prediction=e end},
+            {"toggle","Multi-Target Cycle",Settings.Aimbot.MultiTarget,function(e) Settings.Aimbot.MultiTarget=e end},
+            {"info","Tab = cycle targets when Multi-Target on",Theme.TextDim},
         })
         addCard(page,1,"Aim Config",{
-            {"slider","Smoothness",0.05,1,0.15,function(v) Settings.Aimbot.Smoothness=v end},
-            {"slider","Prediction Amt",0.05,0.3,0.12,function(v) Settings.Aimbot.PredictionAmount=v end},
-            {"slider","Max Distance",100,1000,500,function(v) Settings.Aimbot.MaxDistance=v end},
-            {"enum","Lock Part",{"Head","HRP","UTorso","Torso"},"Head",function(v) local m={Head="Head",HRP="HumanoidRootPart",UTorso="UpperTorso",Torso="Torso"}; Settings.Aimbot.LockPart=m[v] or "Head" end},
+            {"slider","Smoothness",0.05,1,Settings.Aimbot.Smoothness,function(v) Settings.Aimbot.Smoothness=v end},
+            {"slider","Prediction Amt",0.05,0.3,Settings.Aimbot.PredictionAmount,function(v) Settings.Aimbot.PredictionAmount=v end},
+            {"slider","Max Distance",100,1000,Settings.Aimbot.MaxDistance,function(v) Settings.Aimbot.MaxDistance=v end},
+            {"enum","Lock Part",{"Head","HRP","UTorso","Torso"},"Head",function(v)
+                local m={Head="Head",HRP="HumanoidRootPart",UTorso="UpperTorso",Torso="Torso"}
+                Settings.Aimbot.LockPart=m[v] or "Head"
+            end},
         })
         addCard(page,2,"FOV",{
-            {"toggle","Show FOV Circle",true,function(e) Settings.Aimbot.ShowFOV=e end},
-            {"slider","FOV Radius",50,400,150,function(v) Settings.Aimbot.FOVRadius=v end},
-            {"slider","FOV Opacity",0,100,50,function(v) Settings.Aimbot.FOVOpacity=v/100 end},
+            {"toggle","Show FOV Circle",Settings.Aimbot.ShowFOV,function(e) Settings.Aimbot.ShowFOV=e end},
+            {"slider","FOV Radius",50,400,Settings.Aimbot.FOVRadius,function(v) Settings.Aimbot.FOVRadius=v end},
+            {"slider","FOV Opacity",0,100,math.floor(Settings.Aimbot.FOVOpacity*100),function(v) Settings.Aimbot.FOVOpacity=v/100 end},
         })
     end
 
@@ -1298,35 +1376,38 @@ local function createGUI()
     tabBuilders["ESP"] = function(page)
         if gameConfig.espEnabled then
             addCard(page,1,"ESP",{
-                {"toggle","Enabled",false,function(e) Settings.ESP.Enabled=e; sendNotification("ESP",e and "On" or "Off",2) end},
-                {"toggle","Display Name",true,function(e) Settings.ESP.NameEnabled=e end},
-                {"toggle","Display Health",true,function(e) Settings.ESP.HealthEnabled=e end},
-                {"toggle","Display Distance",true,function(e) Settings.ESP.DistanceEnabled=e end},
-                {"toggle","Display Box",true,function(e) Settings.ESP.BoxEnabled=e end},
-                {"toggle","Chams (Wallhack)",false,function(e) Settings.ESP.ChamsEnabled=e; sendNotification("Chams",e and "On" or "Off",2) end},
-                {"toggle","Rainbow Color",false,function(e) Settings.ESP.RainbowColor=e end},
-                {"toggle","Rainbow Outline",false,function(e) Settings.ESP.RainbowOutline=e end},
-                {"toggle","Outline",true,function(e) Settings.ESP.OutlineEnabled=e end},
-                {"enum","Filter",{"Enemy","Team","All"},"Enemy",function(v) local m={Enemy="Enemies",Team="Team",All="All"}; Settings.ESP.FilterMode=m[v] or "Enemies" end},
+                {"toggle","Enabled",Settings.ESP.Enabled,function(e) Settings.ESP.Enabled=e; sendNotification("ESP",e and "On" or "Off",2) end},
+                {"toggle","Display Name",Settings.ESP.NameEnabled,function(e) Settings.ESP.NameEnabled=e end},
+                {"toggle","Display Health",Settings.ESP.HealthEnabled,function(e) Settings.ESP.HealthEnabled=e end},
+                {"toggle","Display Distance",Settings.ESP.DistanceEnabled,function(e) Settings.ESP.DistanceEnabled=e end},
+                {"toggle","Display Box",Settings.ESP.BoxEnabled,function(e) Settings.ESP.BoxEnabled=e end},
+                {"toggle","Chams (Wallhack)",Settings.ESP.ChamsEnabled,function(e) Settings.ESP.ChamsEnabled=e; sendNotification("Chams",e and "On" or "Off",2) end},
+                {"toggle","Rainbow Color",Settings.ESP.RainbowColor,function(e) Settings.ESP.RainbowColor=e end},
+                {"toggle","Rainbow Outline",Settings.ESP.RainbowOutline,function(e) Settings.ESP.RainbowOutline=e end},
+                {"toggle","Outline",Settings.ESP.OutlineEnabled,function(e) Settings.ESP.OutlineEnabled=e end},
+                {"enum","Filter",{"Enemy","Team","All"},"Enemy",function(v)
+                    local m={Enemy="Enemies",Team="Team",All="All"}
+                    Settings.ESP.FilterMode=m[v] or "Enemies"
+                end},
             })
             addCard(page,1,"Chams",{
-                {"slider","Chams Fill",0,100,50,function(v) Settings.ESP.ChamsFillTransparency=v/100 end},
-                {"slider","Font Size",10,24,13,function(v) Settings.ESP.FontSize=v end},
+                {"slider","Chams Fill",0,100,math.floor(Settings.ESP.ChamsFillTransparency*100),function(v) Settings.ESP.ChamsFillTransparency=v/100 end},
+                {"slider","Font Size",10,24,Settings.ESP.FontSize,function(v) Settings.ESP.FontSize=v end},
             })
             addCard(page,2,"Tracer",{
-                {"toggle","Tracer Enabled",true,function(e) Settings.ESP.TracerEnabled=e end},
-                {"toggle","Rainbow Color",false,function(e) Settings.ESP.TracerRainbowColor=e end},
-                {"slider","Thickness",1,5,1,function(v) Settings.ESP.TracerThickness=v end},
+                {"toggle","Tracer Enabled",Settings.ESP.TracerEnabled,function(e) Settings.ESP.TracerEnabled=e end},
+                {"toggle","Rainbow Color",Settings.ESP.TracerRainbowColor,function(e) Settings.ESP.TracerRainbowColor=e end},
+                {"slider","Thickness",1,5,Settings.ESP.TracerThickness,function(v) Settings.ESP.TracerThickness=v end},
                 {"enum","Origin",{"Bottom","Center","Mouse"},"Bottom",function(v) Settings.ESP.TracerOrigin=v end},
             })
             addCard(page,2,"Skeleton",{
-                {"toggle","Skeleton Enabled",false,function(e) Settings.ESP.SkeletonEnabled=e end},
-                {"slider","Thickness",1,5,1,function(v) Settings.ESP.SkeletonThickness=v end},
+                {"toggle","Skeleton Enabled",Settings.ESP.SkeletonEnabled,function(e) Settings.ESP.SkeletonEnabled=e end},
+                {"slider","Thickness",1,5,Settings.ESP.SkeletonThickness,function(v) Settings.ESP.SkeletonThickness=v end},
             })
             addCard(page,2,"Offscreen Arrows",{
-                {"toggle","Arrows Enabled",false,function(e) Settings.ESP.OffscreenArrows=e end},
-                {"slider","Arrow Size",10,40,20,function(v) Settings.ESP.ArrowSize=v end},
-                {"slider","Arrow Distance",100,1000,500,function(v) Settings.ESP.ArrowDistance=v end},
+                {"toggle","Arrows Enabled",Settings.ESP.OffscreenArrows,function(e) Settings.ESP.OffscreenArrows=e end},
+                {"slider","Arrow Size",10,40,Settings.ESP.ArrowSize,function(v) Settings.ESP.ArrowSize=v end},
+                {"slider","Arrow Distance",100,1000,Settings.ESP.ArrowDistance,function(v) Settings.ESP.ArrowDistance=v end},
             })
         else
             local b,_=makeCard(page,"ESP Override",COL1_X,CONTENT_PAD,CARD_W*2+CONTENT_PAD,80)
@@ -1334,7 +1415,7 @@ local function createGUI()
             addInfoRow(b,"ESP is not officially supported for "..currentGameData.name..". Use at your own risk.",0,Theme.WarnColor)
             addButtonRow(b,"Force Enable ESP Override",22,function()
                 gameConfig.espEnabled=true; sendNotification("ESP Override","Force-enabled",3)
-                for _,c in ipairs(page:GetChildren()) do c:Destroy() end
+                for _,c in ipairs(page:GetChildren()) do if not c:IsA("NumberValue") then c:Destroy() end end
                 tabBuilders["ESP"](page)
             end)
         end
@@ -1343,37 +1424,30 @@ local function createGUI()
     -- ---- CROSSHAIR ----
     tabBuilders["Crosshair"] = function(page)
         addCard(page,1,"Crosshair",{
-            {"toggle","Enabled",false,function(e) Settings.Crosshair.Enabled=e end},
-            {"toggle","Rainbow Color",false,function(e) Settings.Crosshair.RainbowColor=e end},
-            {"toggle","Outline",true,function(e) Settings.Crosshair.OutlineEnabled=e end},
-            {"toggle","Center Dot",false,function(e) Settings.Crosshair.CenterDot=e end},
-            {"toggle","Dynamic Spread",false,function(e) Settings.Crosshair.DynamicSpread=e end},
+            {"toggle","Enabled",Settings.Crosshair.Enabled,function(e) Settings.Crosshair.Enabled=e end},
+            {"toggle","Rainbow Color",Settings.Crosshair.RainbowColor,function(e) Settings.Crosshair.RainbowColor=e end},
+            {"toggle","Outline",Settings.Crosshair.OutlineEnabled,function(e) Settings.Crosshair.OutlineEnabled=e end},
+            {"toggle","Center Dot",Settings.Crosshair.CenterDot,function(e) Settings.Crosshair.CenterDot=e end},
+            {"toggle","Dynamic Spread",Settings.Crosshair.DynamicSpread,function(e) Settings.Crosshair.DynamicSpread=e end},
             {"enum","Style",{"Cross","Dot","Circle","X","KV","Sniper"},"Cross",function(v)
                 local m={Cross="Cross",Dot="Dot",Circle="Circle",X="X-Shape",KV="KV",Sniper="Sniper"}
                 Settings.Crosshair.Style=m[v] or "Cross"
             end},
         })
         addCard(page,1,"Crosshair Size",{
-            {"slider","Size",2,50,10,function(v) Settings.Crosshair.Size=v end},
-            {"slider","Thickness",1,8,2,function(v) Settings.Crosshair.Thickness=v end},
-            {"slider","Gap",0,30,4,function(v) Settings.Crosshair.Gap=v end},
-            {"slider","Center Dot Size",1,12,4,function(v) Settings.Crosshair.CenterDotSize=v end},
-            {"slider","Outline Thick",1,4,1,function(v) Settings.Crosshair.OutlineThickness=v end},
-            {"slider","Opacity %",0,100,100,function(v) Settings.Crosshair.Opacity=v/100 end},
+            {"slider","Size",2,50,Settings.Crosshair.Size,function(v) Settings.Crosshair.Size=v end},
+            {"slider","Thickness",1,8,Settings.Crosshair.Thickness,function(v) Settings.Crosshair.Thickness=v end},
+            {"slider","Gap",0,30,Settings.Crosshair.Gap,function(v) Settings.Crosshair.Gap=v end},
+            {"slider","Center Dot Size",1,12,Settings.Crosshair.CenterDotSize,function(v) Settings.Crosshair.CenterDotSize=v end},
+            {"slider","Outline Thick",1,4,Settings.Crosshair.OutlineThickness,function(v) Settings.Crosshair.OutlineThickness=v end},
+            {"slider","Opacity %",0,100,math.floor(Settings.Crosshair.Opacity*100),function(v) Settings.Crosshair.Opacity=v/100 end},
         })
-
-        -- Color pickers built manually since addCard doesn't support them inline
         local col2y = col2Y(page)
         local cpY = col2y.Value
-
-        -- Crosshair color card
         local cbody,_=makeCard(page,"Crosshair Color",COL2_X,cpY,CARD_W,100)
         col2y.Value = cpY + CARD_HEADER_H + 104 + CONTENT_PAD
-        -- R G B sliders for crosshair color
         local function makeColorSliders(body, getColor, setColor, startY)
-            local r = math.floor(getColor().R*255)
-            local g = math.floor(getColor().G*255)
-            local b = math.floor(getColor().B*255)
+            local r = math.floor(getColor().R*255); local g = math.floor(getColor().G*255); local b = math.floor(getColor().B*255)
             local preview = UILib.newFrame(body,{Size=UDim2.new(0,16,0,16),Position=UDim2.new(1,-18,0,startY),BackgroundColor3=getColor(),BorderSizePixel=0}); UILib.corner(preview,3)
             local channels={{Color3.fromRGB(255,80,80),"R"},{Color3.fromRGB(80,220,80),"G"},{Color3.fromRGB(80,120,255),"B"}}
             local vals = {r, g, b}
@@ -1383,47 +1457,42 @@ local function createGUI()
                 local track=UILib.newFrame(body,{Size=UDim2.new(1,-16,0,4),Position=UDim2.new(0,14,0,yy+10),BackgroundColor3=Theme.SliderTrack,BorderSizePixel=0}); UILib.corner(track,4)
                 local fill=UILib.newFrame(track,{Size=UDim2.new(vals[i]/255,0,1,0),BackgroundColor3=ch[1],BorderSizePixel=0}); UILib.corner(fill,4)
                 local knob=UILib.newFrame(track,{Size=UDim2.new(0,10,0,10),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(vals[i]/255,0,0.5,0),BackgroundColor3=Theme.ToggleKnob,BorderSizePixel=0}); UILib.corner(knob,100)
-                local drag=false
-                UILib.newButton(body,{Size=UDim2.new(1,0,0,18),Position=UDim2.new(0,0,0,yy+4),BackgroundTransparency=1,Text=""},nil).MouseButton1Down:Connect(function() drag=true end)
-                table.insert(allConnections,UserInputService.InputEnded:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end end))
-                table.insert(allConnections,RunService.RenderStepped:Connect(function()
-                    if isUnloading or _G.BinxixUnloaded or not drag then return end
-                    local mx=player:GetMouse().X
-                    local rx=math.clamp((mx-track.AbsolutePosition.X)/math.max(track.AbsoluteSize.X,1),0,1)
-                    vals[i]=math.floor(rx*255); fill.Size=UDim2.new(rx,0,1,0); knob.Position=UDim2.new(rx,0,0.5,0)
-                    local newCol=Color3.fromRGB(vals[1],vals[2],vals[3])
-                    setColor(newCol); preview.BackgroundColor3=newCol
-                end))
+                -- CRASH FIX: Reuse shared activeSlider dispatcher — no per-channel connection
+                -- Wrap color channel update as a slider callback so the shared handler drives it
+                local chanIdx = i
+                UILib.newButton(body,{Size=UDim2.new(1,0,0,18),Position=UDim2.new(0,0,0,yy+4),BackgroundTransparency=1,Text=""},nil).MouseButton1Down:Connect(function()
+                    if isUnloading or _G.BinxixUnloaded then return end
+                    -- Build a fake slider descriptor that maps 0-255 range and updates color
+                    activeSlider={track=track,fill=fill,knob=knob,
+                        valLbl=nil, -- color sliders don't need a value label
+                        min=0,max=255,
+                        callback=function(v)
+                            vals[chanIdx]=math.floor(v)
+                            local newCol=Color3.fromRGB(vals[1],vals[2],vals[3])
+                            setColor(newCol); preview.BackgroundColor3=newCol
+                        end
+                    }
+                end)
             end
         end
-        makeColorSliders(cbody,
-            function() return Settings.Crosshair.Color end,
-            function(c) Settings.Crosshair.Color=c end,
-            0)
-
-        -- Outline color card
+        makeColorSliders(cbody,function() return Settings.Crosshair.Color end,function(c) Settings.Crosshair.Color=c end,0)
         local obody,_=makeCard(page,"Outline Color",COL2_X,col2y.Value,CARD_W,100)
         col2y.Value = col2y.Value + CARD_HEADER_H + 104 + CONTENT_PAD
-        makeColorSliders(obody,
-            function() return Settings.Crosshair.OutlineColor end,
-            function(c) Settings.Crosshair.OutlineColor=c end,
-            0)
-
+        makeColorSliders(obody,function() return Settings.Crosshair.OutlineColor end,function(c) Settings.Crosshair.OutlineColor=c end,0)
         addCard(page,2,"Info",{
-            {"info","Preview appears in-game when Enabled.",Theme.TextDim},
+            {"info","Preview renders in-game when Enabled.",Theme.TextDim},
             {"info","X maps to X-Shape. Sniper = fullscreen lines.",Theme.TextDim},
         })
-
         page.CanvasSize=UDim2.new(0,0,0,math.max(col1Y(page).Value,col2Y(page).Value)+CONTENT_PAD)
     end
 
     -- ---- RADAR ----
     tabBuilders["Radar"] = function(page)
         addCard(page,1,"Radar",{
-            {"toggle","Enable Radar",false,function(e) Settings.Radar.Enabled=e; sendNotification("Radar",e and "On" or "Off",2) end},
-            {"slider","Radar Size",80,300,160,function(v) Settings.Radar.Size=v; radarGui.Size=UDim2.new(0,v,0,v); radarGui.Position=UDim2.new(0,10,1,-v-10) end},
-            {"slider","Range (studs)",50,1000,200,function(v) Settings.Radar.Range=v end},
-            {"slider","Dot Scale",0.1,1,0.8,function(v) Settings.Radar.Scale=v end},
+            {"toggle","Enable Radar",Settings.Radar.Enabled,function(e) Settings.Radar.Enabled=e; sendNotification("Radar",e and "On" or "Off",2) end},
+            {"slider","Radar Size",80,300,Settings.Radar.Size,function(v) Settings.Radar.Size=v; radarGui.Size=UDim2.new(0,v,0,v); radarGui.Position=UDim2.new(0,10,1,-v-10) end},
+            {"slider","Range (studs)",50,1000,Settings.Radar.Range,function(v) Settings.Radar.Range=v end},
+            {"slider","Dot Scale",0,100,math.floor(Settings.Radar.Scale*100),function(v) Settings.Radar.Scale=v/100 end},
             {"info","Radar appears bottom-left when enabled.",Theme.TextDim},
         })
         addCard(page,2,"Radar Colors",{
@@ -1439,15 +1508,9 @@ local function createGUI()
             {"toggle","Enable Chat Spy",false,function(e) chatSpyEnabled=e; sendNotification("Chat Spy",e and "Listening" or "Disabled",2) end},
             {"info","Logs all chat messages to console (F9).",Theme.TextDim},
         })
-        addCard(page,1,"Suggestion",{
-            {"info","Write a suggestion below and send it.",Theme.TextDim},
-        })
-        -- suggestion box needs manual build (multiline TextBox)
-        local sCard=page:FindFirstChild("Body") -- last body
-        -- just inline it
+
         local sugY = col1Y(page).Value
-        local sugW = CARD_W
-        local sugBody,_=makeCard(page,"Suggestion",COL1_X,sugY,sugW,96)
+        local sugBody,_=makeCard(page,"Suggestion",COL1_X,sugY,CARD_W,96)
         col1Y(page).Value=sugY+CARD_HEADER_H+100+CONTENT_PAD
         addInfoRow(sugBody,"Describe the feature/change you want:",0,Theme.TextDim)
         local sugBox=UILib.newBox(sugBody,{Size=UDim2.new(1,0,0,46),Position=UDim2.new(0,0,0,18),BackgroundColor3=Theme.InputBg,BorderSizePixel=1,BorderColor3=Theme.InputBorder,Text="",PlaceholderText="Your suggestion...",PlaceholderColor3=Theme.TextDim,TextColor3=Theme.TextPrimary,TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,TextWrapped=true,MultiLine=true,ClearTextOnFocus=false}); UILib.corner(sugBox,4)
@@ -1475,7 +1538,6 @@ local function createGUI()
             local ok=pcall(function() local hf=(syn and syn.request) or (http and http.request) or http_request or request; if hf then hf({Url="https://discord.com/api/webhooks/1466757772145070080/-3-YwfjgH-yEl8yeS_AmuW4E3jDL2aF4GrQdnl0woOtRd_mTF6J4BezIMNlTvvnieSaP",Method="POST",Headers={["Content-Type"]="application/json"},Body=HttpService:JSONEncode(payload)}) else error("no http") end end)
             sendNotification("Report",ok and "Sent!" or "Failed",3); if ok then bugBox.Text="" end
         end)
-
         addCard(page,2,"Community",{
             {"button","Copy Discord Invite",function() pcall(function() if setclipboard then setclipboard("https://discord.gg/S4nPV2Rx7F"); sendNotification("Discord","Invite copied!",3) end end) end},
         })
@@ -1483,7 +1545,7 @@ local function createGUI()
     end
 
     -- ---- SETTINGS ----
-    local currentToggleKey = Enum.KeyCode.RightControl
+    local currentToggleKey = Settings.Keybinds.ToggleGUI
     tabBuilders["Settings"] = function(page)
         addCard(page,1,"Theme",{
             {"enum","Base Theme",{"Purple","Blue","Red","Green","Cyan","Midnight","Rose"},"Purple",function(v) applyTheme(v); sendNotification("Theme","Switched to "..v,2) end},
@@ -1503,10 +1565,6 @@ local function createGUI()
             end},
         })
 
-        addCard(page,2,"Config",{
-            {"info","Type a name then Save/Load/Delete.",Theme.TextDim},
-        })
-        -- Config name box + buttons need manual build
         local cfgY=col2Y(page).Value
         local cfgBody,_=makeCard(page,"Config / Profiles",COL2_X,cfgY,CARD_W,130)
         col2Y(page).Value=cfgY+CARD_HEADER_H+134+CONTENT_PAD
@@ -1514,7 +1572,6 @@ local function createGUI()
         local profBox=UILib.newBox(cfgBody,{Size=UDim2.new(1,0,0,22),Position=UDim2.new(0,0,0,16),BackgroundColor3=Theme.InputBg,BorderSizePixel=1,BorderColor3=Theme.InputBorder,Text="Default",TextColor3=Theme.TextAccent,TextSize=10,Font=Enum.Font.GothamBold,ClearTextOnFocus=false}); UILib.corner(profBox,4)
         local profPad=Instance.new("UIPadding"); profPad.PaddingLeft=UDim.new(0,6); profPad.Parent=profBox
         local activeLbl=addInfoRow(cfgBody,"Active: "..currentProfileName,42,Theme.TextDim)
-        -- Save / Load / Delete row
         local btnW3=math.floor((CARD_W-18-4)/3)
         local function miniBtn(label,x,colr,cb)
             local b=UILib.newButton(cfgBody,{Size=UDim2.new(0,btnW3,0,22),Position=UDim2.new(0,x,0,58),BackgroundColor3=colr,BorderSizePixel=0,Text=label,TextColor3=Color3.fromRGB(255,255,255),TextSize=10,Font=Enum.Font.GothamBold},cb); UILib.corner(b,4); return b
@@ -1530,11 +1587,9 @@ local function createGUI()
         miniBtn("Delete",btnW3*2+4,Color3.fromRGB(160,40,40),function()
             local n=profBox.Text=="" and "Default" or profBox.Text; deleteProfile(n); sendNotification("Config","Deleted: "..n,2)
         end)
-        -- Quick load list
         addInfoRow(cfgBody,"Saved:",84,Theme.TextDim)
         local savedLbl=addInfoRow(cfgBody,table.concat(listProfiles(),", "),94,Theme.TextAccent)
         addButtonRow(cfgBody,"Refresh",112,function() savedLbl.Text=table.concat(listProfiles(),", ") end,Theme.EnumBg)
-        page.CanvasSize=UDim2.new(0,0,0,math.max(col1Y(page).Value,col2Y(page).Value)+CONTENT_PAD)
 
         addCard(page,2,"Script Info",{
             {"info","Binxix Hub v"..SCRIPT_VERSION_DISPLAY,Theme.TextAccent},
@@ -1545,17 +1600,16 @@ local function createGUI()
                 isUnloading=true; _G.BinxixUnloaded=true
                 Settings.Combat.FastReload=false; Settings.Combat.FastFireRate=false; Settings.Combat.AlwaysAuto=false; Settings.Combat.NoSpread=false; Settings.Combat.NoRecoil=false
                 pcall(function() for _,e in pairs(gunOrig) do for obj,v in pairs(e) do pcall(function() obj.Value=v end) end end end)
-                pcall(function() local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=16 end end end)
-                stopAutoTPLoop()
+                pcall(function() local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=16; h.JumpPower=50 end end end)
+                stopAutoTPLoop(); stopFly()
                 for _,conn in ipairs(allConnections) do pcall(function() conn:Disconnect() end) end
                 screenGui:Destroy()
             end,Color3.fromRGB(180,50,50)},
         })
+        page.CanvasSize=UDim2.new(0,0,0,math.max(col1Y(page).Value,col2Y(page).Value)+CONTENT_PAD)
     end
 
-    -- ================================================================
-    -- BUILD FIRST TAB  — deferred so layout has rendered before cards build
-    -- ================================================================
+    -- Build first tab
     tabPages["General"].Visible = true
     task.defer(function()
         tabBuilders["General"](tabPages["General"])
@@ -1581,167 +1635,182 @@ local function createGUI()
         local col=s.RainbowColor and Color3.fromHSV(tick()%3/3,1,1) or s.Color
         local oc=s.OutlineColor; local op=s.Opacity
         local t,sz,gap=s.Thickness,s.Size,s.Gap; local tk=s.OutlineThickness
-
         local dg=gap
-        if s.DynamicSpread then
-            local c=player.Character; if c then local hrp=c:FindFirstChild("HumanoidRootPart")
-                if hrp then local v=Vector3.new(hrp.AssemblyLinearVelocity.X,0,hrp.AssemblyLinearVelocity.Z).Magnitude; dg=gap+math.floor(v*0.15) end end
-        end
-
-        -- Frame is fullscreen — center is half of AbsoluteSize
-        local cx = chFrame.AbsoluteSize.X / 2
-        local cy = chFrame.AbsoluteSize.Y / 2
-        if cx == 0 or cy == 0 then return end  -- not yet rendered
-
+        if s.DynamicSpread then local c=player.Character; if c then local hrp=c:FindFirstChild("HumanoidRootPart"); if hrp then local v=Vector3.new(hrp.AssemblyLinearVelocity.X,0,hrp.AssemblyLinearVelocity.Z).Magnitude; dg=gap+math.floor(v*0.15) end end end
+        local cx = chFrame.AbsoluteSize.X / 2; local cy = chFrame.AbsoluteSize.Y / 2
+        if cx == 0 or cy == 0 then return end
         if s.Style=="Cross" or s.Style=="T-Shape" then
-            -- Up (skip for T-Shape)
-            if s.Style~="T-Shape" then
-                if s.OutlineEnabled then setOL(1,cx,cy-(dg+sz/2),t,sz,oc,tk,op) end
-                setL(1,cx,cy-(dg+sz/2),t,sz,col,op)
-            end
-            -- Down
-            if s.OutlineEnabled then setOL(2,cx,cy+(dg+sz/2),t,sz,oc,tk,op) end
-            setL(2,cx,cy+(dg+sz/2),t,sz,col,op)
-            -- Left
-            if s.OutlineEnabled then setOL(3,cx-(dg+sz/2),cy,sz,t,oc,tk,op) end
-            setL(3,cx-(dg+sz/2),cy,sz,t,col,op)
-            -- Right
-            if s.OutlineEnabled then setOL(4,cx+(dg+sz/2),cy,sz,t,oc,tk,op) end
-            setL(4,cx+(dg+sz/2),cy,sz,t,col,op)
-            -- Center dot
-            if s.CenterDot then
-                local ds=s.CenterDotSize
-                if s.OutlineEnabled then chODot.Size=UDim2.new(0,ds+tk*2,0,ds+tk*2); chODot.BackgroundColor3=oc; chODot.BackgroundTransparency=1-op; chODot.Visible=true end
-                chDot.Size=UDim2.new(0,ds,0,ds); chDot.BackgroundColor3=col; chDot.BackgroundTransparency=1-op; chDot.Visible=true
-            end
-
+            if s.Style~="T-Shape" then if s.OutlineEnabled then setOL(1,cx,cy-(dg+sz/2),t,sz,oc,tk,op) end; setL(1,cx,cy-(dg+sz/2),t,sz,col,op) end
+            if s.OutlineEnabled then setOL(2,cx,cy+(dg+sz/2),t,sz,oc,tk,op) end; setL(2,cx,cy+(dg+sz/2),t,sz,col,op)
+            if s.OutlineEnabled then setOL(3,cx-(dg+sz/2),cy,sz,t,oc,tk,op) end; setL(3,cx-(dg+sz/2),cy,sz,t,col,op)
+            if s.OutlineEnabled then setOL(4,cx+(dg+sz/2),cy,sz,t,oc,tk,op) end; setL(4,cx+(dg+sz/2),cy,sz,t,col,op)
+            if s.CenterDot then local ds=s.CenterDotSize; if s.OutlineEnabled then chODot.Size=UDim2.new(0,ds+tk*2,0,ds+tk*2); chODot.BackgroundColor3=oc; chODot.BackgroundTransparency=1-op; chODot.Visible=true end; chDot.Size=UDim2.new(0,ds,0,ds); chDot.BackgroundColor3=col; chDot.BackgroundTransparency=1-op; chDot.Visible=true end
         elseif s.Style=="X-Shape" then
-            for i,rot in ipairs({45,-45}) do
-                local li=chL[i]; local oi=chO[i]
-                if s.OutlineEnabled then
-                    oi.Size=UDim2.new(0,t+tk*2,0,sz*2+dg*2+tk*2); oi.Position=UDim2.new(0,cx,0,cy)
-                    oi.Rotation=rot; oi.BackgroundColor3=oc; oi.BackgroundTransparency=1-op; oi.Visible=true
-                end
-                li.Size=UDim2.new(0,t,0,sz*2+dg*2); li.Position=UDim2.new(0,cx,0,cy)
-                li.Rotation=rot; li.BackgroundColor3=col; li.BackgroundTransparency=1-op; li.Visible=true
-            end
-
+            for i,rot in ipairs({45,-45}) do local li=chL[i]; local oi=chO[i]; if s.OutlineEnabled then oi.Size=UDim2.new(0,t+tk*2,0,sz*2+dg*2+tk*2); oi.Position=UDim2.new(0,cx,0,cy); oi.Rotation=rot; oi.BackgroundColor3=oc; oi.BackgroundTransparency=1-op; oi.Visible=true end; li.Size=UDim2.new(0,t,0,sz*2+dg*2); li.Position=UDim2.new(0,cx,0,cy); li.Rotation=rot; li.BackgroundColor3=col; li.BackgroundTransparency=1-op; li.Visible=true end
         elseif s.Style=="Dot" then
-            local ds=s.Size
-            if s.OutlineEnabled then chODot.Size=UDim2.new(0,ds+tk*2,0,ds+tk*2); chODot.BackgroundColor3=oc; chODot.BackgroundTransparency=1-op; chODot.Visible=true end
-            chDot.Size=UDim2.new(0,ds,0,ds); chDot.BackgroundColor3=col; chDot.BackgroundTransparency=1-op; chDot.Visible=true
-
+            local ds=s.Size; if s.OutlineEnabled then chODot.Size=UDim2.new(0,ds+tk*2,0,ds+tk*2); chODot.BackgroundColor3=oc; chODot.BackgroundTransparency=1-op; chODot.Visible=true end; chDot.Size=UDim2.new(0,ds,0,ds); chDot.BackgroundColor3=col; chDot.BackgroundTransparency=1-op; chDot.Visible=true
         elseif s.Style=="Circle" then
-            chCirc.Size=UDim2.new(0,sz*2,0,sz*2); chCirc.Position=UDim2.new(0,cx,0,cy)
-            chCS.Color=col; chCS.Thickness=t; chCirc.Visible=true
-            if s.CenterDot then
-                local ds=s.CenterDotSize
-                chDot.Size=UDim2.new(0,ds,0,ds); chDot.BackgroundColor3=col; chDot.BackgroundTransparency=1-op; chDot.Visible=true
-            end
-
+            chCirc.Size=UDim2.new(0,sz*2,0,sz*2); chCirc.Position=UDim2.new(0,cx,0,cy); chCS.Color=col; chCS.Thickness=t; chCirc.Visible=true
+            if s.CenterDot then local ds=s.CenterDotSize; chDot.Size=UDim2.new(0,ds,0,ds); chDot.BackgroundColor3=col; chDot.BackgroundTransparency=1-op; chDot.Visible=true end
         elseif s.Style=="Sniper" then
-            -- Full viewport-spanning lines with center gap
             local screen = Workspace.CurrentCamera and Workspace.CurrentCamera.ViewportSize or Vector2.new(800,600)
-            local halfW = screen.X/2; local halfH = screen.Y/2
-            -- Vertical line (two halves — top and bottom with gap)
-            if s.OutlineEnabled then setOL(1,cx,cy-(dg/2+halfH/2),t,halfH-dg/2,oc,tk,op*0.7) end
-            setL(1,cx,cy-(dg/2+halfH/2),t,halfH-dg/2,col,op*0.7)
-            if s.OutlineEnabled then setOL(2,cx,cy+(dg/2+halfH/2),t,halfH-dg/2,oc,tk,op*0.7) end
-            setL(2,cx,cy+(dg/2+halfH/2),t,halfH-dg/2,col,op*0.7)
-            -- Horizontal line (two halves)
-            if s.OutlineEnabled then setOL(3,cx-(dg/2+halfW/2),cy,halfW-dg/2,t,oc,tk,op*0.7) end
-            setL(3,cx-(dg/2+halfW/2),cy,halfW-dg/2,t,col,op*0.7)
-            if s.OutlineEnabled then setOL(4,cx+(dg/2+halfW/2),cy,halfW-dg/2,t,oc,tk,op*0.7) end
-            setL(4,cx+(dg/2+halfW/2),cy,halfW-dg/2,t,col,op*0.7)
-            -- Center dot
-            local ds=s.CenterDotSize
-            chDot.Size=UDim2.new(0,ds,0,ds); chDot.BackgroundColor3=col; chDot.BackgroundTransparency=1-op; chDot.Visible=true
-
+            local halfW=screen.X/2; local halfH=screen.Y/2
+            if s.OutlineEnabled then setOL(1,cx,cy-(dg/2+halfH/2),t,halfH-dg/2,oc,tk,op*0.7) end; setL(1,cx,cy-(dg/2+halfH/2),t,halfH-dg/2,col,op*0.7)
+            if s.OutlineEnabled then setOL(2,cx,cy+(dg/2+halfH/2),t,halfH-dg/2,oc,tk,op*0.7) end; setL(2,cx,cy+(dg/2+halfH/2),t,halfH-dg/2,col,op*0.7)
+            if s.OutlineEnabled then setOL(3,cx-(dg/2+halfW/2),cy,halfW-dg/2,t,oc,tk,op*0.7) end; setL(3,cx-(dg/2+halfW/2),cy,halfW-dg/2,t,col,op*0.7)
+            if s.OutlineEnabled then setOL(4,cx+(dg/2+halfW/2),cy,halfW-dg/2,t,oc,tk,op*0.7) end; setL(4,cx+(dg/2+halfW/2),cy,halfW-dg/2,t,col,op*0.7)
+            local ds=s.CenterDotSize; chDot.Size=UDim2.new(0,ds,0,ds); chDot.BackgroundColor3=col; chDot.BackgroundTransparency=1-op; chDot.Visible=true
         elseif s.Style=="KV" then
-            -- V-shape: two arms angling downward + horizontal top bar
-            for i,ang in ipairs({-35,35}) do
-                local arm=chL[i]; local aOut=chO[i]
-                if s.OutlineEnabled then
-                    aOut.Size=UDim2.new(0,t+tk*2,0,sz+tk*2); aOut.Position=UDim2.new(0,cx,0,cy)
-                    aOut.Rotation=ang; aOut.BackgroundColor3=oc; aOut.BackgroundTransparency=1-op
-                    aOut.AnchorPoint=Vector2.new(0.5,0); aOut.Visible=true
-                end
-                arm.Size=UDim2.new(0,t,0,sz); arm.Position=UDim2.new(0,cx,0,cy)
-                arm.Rotation=ang; arm.BackgroundColor3=col; arm.BackgroundTransparency=1-op
-                arm.AnchorPoint=Vector2.new(0.5,0); arm.Visible=true
-            end
-            if s.OutlineEnabled then setOL(3,cx,cy,sz*2,t,oc,tk,op) end
-            setL(3,cx,cy,sz*2,t,col,op)
+            for i,ang in ipairs({-35,35}) do local arm=chL[i]; local aOut=chO[i]; if s.OutlineEnabled then aOut.Size=UDim2.new(0,t+tk*2,0,sz+tk*2); aOut.Position=UDim2.new(0,cx,0,cy); aOut.Rotation=ang; aOut.BackgroundColor3=oc; aOut.BackgroundTransparency=1-op; aOut.AnchorPoint=Vector2.new(0.5,0); aOut.Visible=true end; arm.Size=UDim2.new(0,t,0,sz); arm.Position=UDim2.new(0,cx,0,cy); arm.Rotation=ang; arm.BackgroundColor3=col; arm.BackgroundTransparency=1-op; arm.AnchorPoint=Vector2.new(0.5,0); arm.Visible=true end
+            if s.OutlineEnabled then setOL(3,cx,cy,sz*2,t,oc,tk,op) end; setL(3,cx,cy,sz*2,t,col,op)
         end
     end
     table.insert(allConnections,RunService.RenderStepped:Connect(function() if isUnloading or _G.BinxixUnloaded then return end; updateCrosshair() end))
 
     -- ================================================================
-    -- GAMEPLAY LOOPS (speed, bhop, fly, etc.)
+    -- GAMEPLAY LOOPS
     -- ================================================================
+
+    -- FIX: Speed loop — WalkSpeed method now actually sets WalkSpeed instead of returning early
     local speedVel=nil
     table.insert(allConnections,RunService.Heartbeat:Connect(function(dt)
-        if isUnloading or _G.BinxixUnloaded or not Settings.Movement.SpeedEnabled then if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end; return end
-        local method=Settings.Movement.SpeedMethod; if method=="WalkSpeed" then if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end; return end
-        local char=player.Character; if not char then return end; local hrp=char:FindFirstChild("HumanoidRootPart"); local hum=char:FindFirstChild("Humanoid"); if not hrp or not hum then return end; hum.WalkSpeed=16
-        local md=hum.MoveDirection; if md.Magnitude<0.1 then if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end; return end
+        if isUnloading or _G.BinxixUnloaded then
+            if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
+            return
+        end
+        if not Settings.Movement.SpeedEnabled then
+            if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
+            return
+        end
+        local char=player.Character; if not char then return end
+        local hrp=char:FindFirstChild("HumanoidRootPart"); local hum=char:FindFirstChild("Humanoid")
+        if not hrp or not hum then return end
+
+        local method=Settings.Movement.SpeedMethod
         local spd=Settings.Movement.Speed
-        if method=="CFrame" then if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end; local wm=md*spd*dt; hrp.CFrame=hrp.CFrame+Vector3.new(wm.X,0,wm.Z)
+
+        -- FIX: WalkSpeed method now properly applies speed (was broken - returned early without doing anything)
+        if method=="WalkSpeed" then
+            if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
+            -- Continuously enforce WalkSpeed so the game can't reset it
+            if hum.WalkSpeed ~= spd then
+                hum.WalkSpeed = spd
+            end
+            return
+        end
+
+        local md=hum.MoveDirection
+        if md.Magnitude<0.1 then
+            if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
+            return
+        end
+
+        if method=="CFrame" then
+            if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
+            -- FIX: Reset WalkSpeed so CFrame method doesn't double-stack
+            hum.WalkSpeed=16
+            local wm=md*spd*dt; hrp.CFrame=hrp.CFrame+Vector3.new(wm.X,0,wm.Z)
         elseif method=="Velocity" then
-            if not speedVel or speedVel.Parent~=hrp then if speedVel then pcall(function() speedVel:Destroy() end) end; speedVel=Instance.new("BodyVelocity"); speedVel.Name="BinxixSpeedVelocity"; speedVel.MaxForce=Vector3.new(100000,0,100000); speedVel.P=10000; speedVel.Parent=hrp end
+            -- FIX: Reset WalkSpeed so Velocity method doesn't double-stack
+            hum.WalkSpeed=16
+            if not speedVel or speedVel.Parent~=hrp then
+                if speedVel then pcall(function() speedVel:Destroy() end) end
+                speedVel=Instance.new("BodyVelocity"); speedVel.Name="BinxixSpeedVelocity"
+                speedVel.MaxForce=Vector3.new(100000,0,100000); speedVel.P=10000; speedVel.Parent=hrp
+            end
             speedVel.Velocity=md*spd
         end
     end))
 
+    -- Bhop (unchanged, works fine)
     local bhopVel=nil; local lastJump=0; local curBhop=0
+    -- PERF FIX: Merge bhop + FOV + fly + FPS/velocity into one RenderStepped (was 4 separate)
+    local fpsFrame=UILib.newFrame(screenGui,{Name="FPSFrame",Size=UDim2.new(0,100,0,22),Position=UDim2.new(1,-110,0,8),BackgroundColor3=Theme.CardBg,BackgroundTransparency=0.2,BorderSizePixel=0,Visible=false}); UILib.corner(fpsFrame,5)
+    local fpsLbl=UILib.newLabel(fpsFrame,{Size=UDim2.new(1,-8,1,0),Position=UDim2.new(0,4,0,0),Text="FPS: 0",TextColor3=Theme.TextAccent,TextSize=11,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left})
+    local velLbl=UILib.newLabel(screenGui,{Name="VelLabel",Size=UDim2.new(0,160,0,18),Position=UDim2.new(0.5,40,0.5,26),Text="0.0 studs/s",TextColor3=Theme.CardHeaderBg,TextSize=12,Font=Enum.Font.GothamBold,TextStrokeTransparency=0.5,TextStrokeColor3=Color3.fromRGB(0,0,0),Visible=false})
+    local lastFpsUp=tick(); local fc=0; local cfps=0
+
     table.insert(allConnections,RunService.RenderStepped:Connect(function(dt)
-        if isUnloading or _G.BinxixUnloaded or not Settings.Movement.BunnyHop then if bhopVel then bhopVel:Destroy(); bhopVel=nil end; curBhop=0; return end
-        local char=player.Character; if not char then return end; local hum=char:FindFirstChild("Humanoid"); local hrp=char:FindFirstChild("HumanoidRootPart"); if not hum or not hrp then return end
-        local holdSp=UserInputService:IsKeyDown(Enum.KeyCode.Space); local grounded=hum:GetState()~=Enum.HumanoidStateType.Jumping and hum:GetState()~=Enum.HumanoidStateType.Freefall; local tbs=16+(Settings.Movement.BunnyHopSpeed/100)*64
-        if holdSp then
-            if grounded then hum:ChangeState(Enum.HumanoidStateType.Jumping); lastJump=tick() end
-            if not grounded then local cam=Workspace.CurrentCamera; if cam then local lv=cam.CFrame.LookVector; local fd=Vector3.new(lv.X,0,lv.Z).Unit; curBhop=curBhop+(tbs-curBhop)*math.min(dt*5,1); if not bhopVel or bhopVel.Parent~=hrp then if bhopVel then bhopVel:Destroy() end; bhopVel=Instance.new("BodyVelocity"); bhopVel.Name="BinxixBhopVelocity"; bhopVel.MaxForce=Vector3.new(8000,0,8000); bhopVel.P=1000; bhopVel.Parent=hrp end; bhopVel.Velocity=fd*curBhop end
-            else if bhopVel and (tick()-lastJump)>0.08 then bhopVel:Destroy(); bhopVel=nil end; curBhop=curBhop*0.85 end
-        else if bhopVel then bhopVel:Destroy(); bhopVel=nil end; curBhop=0 end
-    end))
-
-    table.insert(allConnections,RunService.RenderStepped:Connect(function()
-        if isUnloading or _G.BinxixUnloaded or not Settings.Visuals.CustomFOV then return end
-        local cam=Workspace.CurrentCamera; if cam and cam.FieldOfView~=Settings.Visuals.FOVAmount then cam.FieldOfView=Settings.Visuals.FOVAmount end
-    end))
-
-    table.insert(allConnections,RunService.RenderStepped:Connect(function()
         if isUnloading or _G.BinxixUnloaded then return end
+
+        -- Custom FOV
+        if Settings.Visuals.CustomFOV then
+            local cam=Workspace.CurrentCamera; if cam and cam.FieldOfView~=Settings.Visuals.FOVAmount then cam.FieldOfView=Settings.Visuals.FOVAmount end
+        end
+
+        -- Fly
         if Settings.Movement.Fly and isFlying then
-            local char=player.Character; if not char then return end; local hrp=char:FindFirstChild("HumanoidRootPart"); if not hrp or not flyBodyVelocity or not flyBodyGyro then return end
-            local cam=Workspace.CurrentCamera; local spd=Settings.Movement.FlySpeed; local dir=Vector3.new(0,0,0)
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir=dir+cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir=dir-cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir=dir-cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir=dir+cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir=dir+Vector3.new(0,1,0) end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir=dir-Vector3.new(0,1,0) end
-            if dir.Magnitude>0 then dir=dir.Unit end
-            flyBodyVelocity.Velocity=dir*spd; flyBodyGyro.CFrame=cam.CFrame
+            local char=player.Character; if char then
+                local hrp=char:FindFirstChild("HumanoidRootPart"); if hrp and flyBodyVelocity and flyBodyGyro then
+                    local cam=Workspace.CurrentCamera; local spd=Settings.Movement.FlySpeed; local dir=Vector3.new(0,0,0)
+                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir=dir+cam.CFrame.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir=dir-cam.CFrame.LookVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir=dir-cam.CFrame.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir=dir+cam.CFrame.RightVector end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir=dir+Vector3.new(0,1,0) end
+                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir=dir-Vector3.new(0,1,0) end
+                    if dir.Magnitude>0 then dir=dir.Unit end
+                    flyBodyVelocity.Velocity=dir*spd; flyBodyGyro.CFrame=cam.CFrame
+                end
+            end
         elseif not Settings.Movement.Fly and isFlying then stopFly() end
+
+        -- Bhop
+        if Settings.Movement.BunnyHop then
+            local char=player.Character; if char then
+                local hum=char:FindFirstChild("Humanoid"); local hrp=char:FindFirstChild("HumanoidRootPart")
+                if hum and hrp then
+                    local holdSp=UserInputService:IsKeyDown(Enum.KeyCode.Space)
+                    local grounded=hum:GetState()~=Enum.HumanoidStateType.Jumping and hum:GetState()~=Enum.HumanoidStateType.Freefall
+                    local tbs=16+(Settings.Movement.BunnyHopSpeed/100)*64
+                    if holdSp then
+                        if grounded then hum:ChangeState(Enum.HumanoidStateType.Jumping); lastJump=tick() end
+                        if not grounded then
+                            local cam=Workspace.CurrentCamera; if cam then
+                                local fd=Vector3.new(cam.CFrame.LookVector.X,0,cam.CFrame.LookVector.Z).Unit
+                                curBhop=curBhop+(tbs-curBhop)*math.min(dt*5,1)
+                                if not bhopVel or bhopVel.Parent~=hrp then if bhopVel then bhopVel:Destroy() end; bhopVel=Instance.new("BodyVelocity"); bhopVel.Name="BinxixBhopVelocity"; bhopVel.MaxForce=Vector3.new(8000,0,8000); bhopVel.P=1000; bhopVel.Parent=hrp end
+                                bhopVel.Velocity=fd*curBhop
+                            end
+                        else if bhopVel and (tick()-lastJump)>0.08 then bhopVel:Destroy(); bhopVel=nil end; curBhop=curBhop*0.85 end
+                    else if bhopVel then bhopVel:Destroy(); bhopVel=nil end; curBhop=0 end
+                end
+            end
+        else
+            if bhopVel then bhopVel:Destroy(); bhopVel=nil end; curBhop=0
+        end
+
+        -- FPS counter + velocity display
+        fpsFrame.Visible=Settings.Visuals.ShowFPS; velLbl.Visible=Settings.Visuals.ShowVelocity
+        if Settings.Visuals.ShowFPS then
+            fc=fc+1; if tick()-lastFpsUp>=1 then cfps=fc; fc=0; lastFpsUp=tick() end
+            fpsLbl.Text="FPS: "..tostring(cfps)
+        end
+        if Settings.Visuals.ShowVelocity then
+            local c=player.Character; if c then local hrp=c:FindFirstChild("HumanoidRootPart"); if hrp then local v=hrp.AssemblyLinearVelocity; velLbl.Text=string.format("%.1f studs/s",Vector3.new(v.X,0,v.Z).Magnitude) end end
+        end
     end))
 
     local vu=game:GetService("VirtualUser")
     table.insert(allConnections,player.Idled:Connect(function() if Settings.Misc.AntiAFK then vu:CaptureController(); vu:ClickButton2(Vector2.new()) end end))
 
-    local lastGunCheck=0
+    -- PERF FIX: Gun check + chat spam merged into one Heartbeat (was 2 separate)
+    local lastGunCheck=0; local lastSpam=0
     table.insert(allConnections,RunService.Heartbeat:Connect(function()
-        if isUnloading or _G.BinxixUnloaded then return end; local now=tick(); if now-lastGunCheck<2 then return end; lastGunCheck=now
-        local any=Settings.Combat.FastReload or Settings.Combat.FastFireRate or Settings.Combat.AlwaysAuto or Settings.Combat.NoSpread or Settings.Combat.NoRecoil; if not any then return end
-        if not weaponCacheBuilt then buildWeaponCache() end
-        for _,v in ipairs(weaponCache) do if v and v.Parent then local n=v.Name; if Settings.Combat.FastReload and (n=="ReloadTime" or n=="EReloadTime") and v.Value~=0.01 then v.Value=0.01 elseif Settings.Combat.FastFireRate and (n=="FireRate" or n=="BFireRate") and v.Value~=0.02 then v.Value=0.02 elseif Settings.Combat.AlwaysAuto and (n=="Auto" or n=="AutoFire" or n=="Automatic" or n=="AutoShoot" or n=="AutoGun") and v.Value~=true then v.Value=true elseif Settings.Combat.NoSpread and (n=="MaxSpread" or n=="Spread" or n=="SpreadControl") and v.Value~=0 then v.Value=0 elseif Settings.Combat.NoRecoil and (n=="RecoilControl" or n=="Recoil") and v.Value~=0 then v.Value=0 end end end
-    end))
-
-    local lastSpam=0
-    table.insert(allConnections,RunService.Heartbeat:Connect(function()
-        if isUnloading or _G.BinxixUnloaded or not Settings.Misc.ChatSpammer then return end
-        local now=tick(); if now-lastSpam<Settings.Misc.ChatSpamDelay then return end; local msg=Settings.Misc.ChatSpamMessage; if msg=="" then return end; lastSpam=now
-        pcall(function() local tcs=game:GetService("TextChatService"); local ch=tcs:FindFirstChild("TextChannels"); if ch then local g=ch:FindFirstChild("RBXGeneral"); if g then g:SendAsync(msg) end end end)
+        if isUnloading or _G.BinxixUnloaded then return end
+        local now=tick()
+        if now-lastGunCheck>=2 then lastGunCheck=now
+            local any=Settings.Combat.FastReload or Settings.Combat.FastFireRate or Settings.Combat.AlwaysAuto or Settings.Combat.NoSpread or Settings.Combat.NoRecoil
+            if any then
+                if not weaponCacheBuilt then buildWeaponCache() end
+                for _,v in ipairs(weaponCache) do if v and v.Parent then local n=v.Name; if Settings.Combat.FastReload and (n=="ReloadTime" or n=="EReloadTime") and v.Value~=0.01 then v.Value=0.01 elseif Settings.Combat.FastFireRate and (n=="FireRate" or n=="BFireRate") and v.Value~=0.02 then v.Value=0.02 elseif Settings.Combat.AlwaysAuto and (n=="Auto" or n=="AutoFire" or n=="Automatic" or n=="AutoShoot" or n=="AutoGun") and v.Value~=true then v.Value=true elseif Settings.Combat.NoSpread and (n=="MaxSpread" or n=="Spread" or n=="SpreadControl") and v.Value~=0 then v.Value=0 elseif Settings.Combat.NoRecoil and (n=="RecoilControl" or n=="Recoil") and v.Value~=0 then v.Value=0 end end end
+            end
+        end
+        if Settings.Misc.ChatSpammer and now-lastSpam>=Settings.Misc.ChatSpamDelay then lastSpam=now
+            local msg=Settings.Misc.ChatSpamMessage; if msg~="" then
+                pcall(function() local tcs=game:GetService("TextChatService"); local ch=tcs:FindFirstChild("TextChannels"); if ch then local g=ch:FindFirstChild("RBXGeneral"); if g then g:SendAsync(msg) end end end)
+            end
+        end
     end))
 
     -- Chat spy
@@ -1753,47 +1822,31 @@ local function createGUI()
     end)
     for _,p in ipairs(Players:GetPlayers()) do if p~=player then pcall(function() p.Chatted:Connect(function(msg) if chatSpyEnabled then print("[ChatSpy] "..p.DisplayName..": "..msg) end end) end) end end
     table.insert(allConnections,Players.PlayerAdded:Connect(function(p) pcall(function() p.Chatted:Connect(function(msg) if chatSpyEnabled then print("[ChatSpy] "..p.DisplayName..": "..msg) end end) end) end))
-
-    -- FPS + velocity
-    local fpsFrame=UILib.newFrame(screenGui,{Name="FPSFrame",Size=UDim2.new(0,100,0,22),Position=UDim2.new(1,-110,0,8),BackgroundColor3=Theme.CardBg,BackgroundTransparency=0.2,BorderSizePixel=0,Visible=false}); UILib.corner(fpsFrame,5)
-    local fpsLbl=UILib.newLabel(fpsFrame,{Size=UDim2.new(1,-8,1,0),Position=UDim2.new(0,4,0,0),Text="FPS: 0",TextColor3=Theme.TextAccent,TextSize=11,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left})
-    local velLbl=UILib.newLabel(screenGui,{Name="VelLabel",Size=UDim2.new(0,160,0,18),Position=UDim2.new(0.5,40,0.5,26),Text="0.0 studs/s",TextColor3=Theme.CardHeaderBg,TextSize=12,Font=Enum.Font.GothamBold,TextStrokeTransparency=0.5,TextStrokeColor3=Color3.fromRGB(0,0,0),Visible=false})
-    local lastFpsUp=tick(); local fc=0; local cfps=0
-    table.insert(allConnections,RunService.RenderStepped:Connect(function()
-        if isUnloading or _G.BinxixUnloaded then return end
-        fpsFrame.Visible=Settings.Visuals.ShowFPS; velLbl.Visible=Settings.Visuals.ShowVelocity
-        if Settings.Visuals.ShowFPS then fc=fc+1; if tick()-lastFpsUp>=1 then cfps=fc; fc=0; lastFpsUp=tick() end; fpsLbl.Text="FPS: "..tostring(cfps) end
-        if Settings.Visuals.ShowVelocity then local c=player.Character; if c then local hrp=c:FindFirstChild("HumanoidRootPart"); if hrp then local v=hrp.AssemblyLinearVelocity; velLbl.Text=string.format("%.1f studs/s",Vector3.new(v.X,0,v.Z).Magnitude) end end end
-    end))
-
-    -- ================================================================
-    -- INPUT
     -- ================================================================
     local waitingForAnyKeyGlobal = false
     table.insert(allConnections,UserInputService.InputBegan:Connect(function(input,gp)
         if isUnloading or _G.BinxixUnloaded or gp then return end
         if waitingForAnyKey or waitingForAnyKeyGlobal then return end
 
-        if input.KeyCode==currentToggleKey then mainFrame.Visible=not mainFrame.Visible end
-
+        if input.KeyCode==Settings.Keybinds.ToggleGUI then mainFrame.Visible=not mainFrame.Visible end
         if input.KeyCode==Settings.Keybinds.ToggleFly then if Settings.Movement.Fly then if isFlying then stopFly() else startFly() end end end
-
         if input.KeyCode==Settings.Keybinds.ToggleAutoTP then
             Settings.Misc.AutoTPLoop=not Settings.Misc.AutoTPLoop
-            if Settings.Misc.AutoTPLoop then startAutoTPLoop(); sendNotification("Auto TP","On",2)
-            else stopAutoTPLoop(); sendNotification("Auto TP","Off",2) end
+            if Settings.Misc.AutoTPLoop then startAutoTPLoop(); sendNotification("Auto TP","On",2) else stopAutoTPLoop(); sendNotification("Auto TP","Off",2) end
         end
-
         if input.KeyCode==Enum.KeyCode.Tab then if Settings.Aimbot.Enabled and Settings.Aimbot.MultiTarget then cycleTarget() end end
-
         if input.KeyCode==Settings.Keybinds.PanicKey then
             Settings.ESP.Enabled=false; Settings.Aimbot.Enabled=false; Settings.Crosshair.Enabled=false; Settings.Radar.Enabled=false
+            Settings.Movement.SpeedEnabled=false; Settings.Movement.Fly=false; stopFly()
+            -- FIX: Panic also resets WalkSpeed
+            local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=16; h.JumpPower=50 end end
             mainFrame.Visible=false; sendNotification("PANIC","All features disabled",3)
         end
-
         if input.UserInputType==Enum.UserInputType.MouseButton2 then
             if Settings.Aimbot.Enabled then
-                if Settings.Aimbot.Toggle then if toggleTrackingActive then toggleTrackingActive=false; stopAimbotTracking() else toggleTrackingActive=true; startAimbotTracking() end
+                if Settings.Aimbot.Toggle then
+                    if toggleTrackingActive then toggleTrackingActive=false; stopAimbotTracking()
+                    else toggleTrackingActive=true; startAimbotTracking() end
                 else startAimbotTracking() end
             end
         end
@@ -1801,7 +1854,9 @@ local function createGUI()
 
     table.insert(allConnections,UserInputService.InputEnded:Connect(function(input)
         if isUnloading or _G.BinxixUnloaded then return end
-        if input.UserInputType==Enum.UserInputType.MouseButton2 then if Settings.Aimbot.Enabled and not Settings.Aimbot.Toggle then stopAimbotTracking() end end
+        if input.UserInputType==Enum.UserInputType.MouseButton2 then
+            if Settings.Aimbot.Enabled and not Settings.Aimbot.Toggle then stopAimbotTracking() end
+        end
     end))
 
     return screenGui
@@ -1812,6 +1867,18 @@ end
 -- ====================================================================
 local gui = createGUI()
 
+-- Register cleanup so the NEXT execution of this script can kill these connections
+-- This is what prevents stale frame references crashing on re-execute
+_G.BinxixCleanup = function()
+    isUnloading = true
+    _G.BinxixUnloaded = true
+    pcall(function()
+        for _,conn in ipairs(allConnections) do pcall(function() conn:Disconnect() end) end
+    end)
+    pcall(function() if gui and gui.Parent then gui:Destroy() end end)
+    _G.BinxixCleanup = nil
+end
+
 print("Binxix Hub V7 loaded | RightControl to toggle")
 
 task.delay(1,function() sendNotification("Binxix Hub V7","Loaded | RCtrl = toggle | "..currentGameData.name,4) end)
@@ -1820,7 +1887,7 @@ task.delay(6,function() sendNotification("Discord","discord.gg/S4nPV2Rx7F",5) en
 if not checkIntegrity() then
     task.delay(2,function() sendNotification("Integrity Warning","Tampered script detected",8) end)
 elseif isWeakExecutor() then
-    task.delay(2,function() sendNotification("Executor Warning",getExecutorName().." - some features may not work as expected",7) end)
+    task.delay(2,function() sendNotification("Executor Warning",getExecutorName().." - some features may not work",7) end)
 end
 
 task.delay(0.4,function()
