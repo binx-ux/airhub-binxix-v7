@@ -1,4 +1,4 @@
-name: Discord Update Notification
+name: Binxix Hub Notifier
 
 on:
   push:
@@ -11,156 +11,176 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Send Discord notification
+      - name: Notify Discord
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
-          COMMIT_SHA: ${{ github.sha }}
-          AUTHOR: ${{ github.event.head_commit.author.name }}
+          WEBHOOK:    ${{ secrets.DISCORD_WEBHOOK }}
+          RAW_MSG:    ${{ github.event.head_commit.message }}
+          SHA:        ${{ github.sha }}
+          AUTHOR:     ${{ github.event.head_commit.author.name }}
           COMMIT_URL: ${{ github.event.head_commit.url }}
-          REPO: ${{ github.repository }}
-          TIMESTAMP: ${{ github.event.head_commit.timestamp }}
+          REPO:       ${{ github.repository }}
+          TIMESTAMP:  ${{ github.event.head_commit.timestamp }}
         run: |
           set -euo pipefail
 
-          SHORT_SHA="${COMMIT_SHA:0:7}"
-          PARENT_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          # ────────────────────────────────────────
+          # BASICS
+          # ────────────────────────────────────────
+          MSG=$(echo "$RAW_MSG" | head -1)
+          SHORT="${SHA:0:7}"
+          PARENT=$(git rev-parse HEAD~1 2>/dev/null || echo "")
 
-          # Skip auto version bump commits
-          FIRST_LINE=$(echo "$COMMIT_MSG" | head -1)
-          if echo "$FIRST_LINE" | grep -q "^\[auto\] version bump"; then
-            echo "Skipping version bump commit"
+          echo "Commit: $MSG"
+          echo "SHA:    $SHORT"
+          echo "Author: $AUTHOR"
+
+          # skip the auto bump commit this workflow itself makes
+          if echo "$MSG" | grep -qF "[auto] version bump"; then
+            echo ">> Skipping auto bump commit"
             exit 0
           fi
 
-          # ── Find source file ──
-          SOURCE_FILE=""
+          # ────────────────────────────────────────
+          # FIND LUA FILE
+          # ────────────────────────────────────────
+          LUA=""
           for f in source/*.lua; do
-            [ -f "$f" ] && SOURCE_FILE="$f" && break
+            [ -f "$f" ] && LUA="$f" && break
           done
-          if [ -z "$SOURCE_FILE" ]; then
-            echo "No source/*.lua found — aborting"
-            exit 0
-          fi
-          echo "Source file: $SOURCE_FILE"
 
-          # ── Validate V7 header ──
-          LINE1=$(sed -n "1p" "$SOURCE_FILE")
-          LINE2=$(sed -n "2p" "$SOURCE_FILE")
-          LINE3=$(sed -n "3p" "$SOURCE_FILE")
-          LINE4=$(sed -n "4p" "$SOURCE_FILE")
+          if [ -z "$LUA" ]; then
+            echo ">> No source/*.lua found — skipping"
+            exit 0
+          fi
+          echo "Lua file: $LUA"
 
-          echo "Header check:"
-          echo "  L1: $LINE1"
-          echo "  L2: $LINE2"
-          echo "  L3: $LINE3"
-          echo "  L4: $LINE4"
+          # ────────────────────────────────────────
+          # VALIDATE V7 HEADER
+          # Pull each line into a var then compare
+          # with double-quoted strings so no single
+          # quotes are needed anywhere in this file.
+          # ────────────────────────────────────────
+          L1=$(sed -n "1p" "$LUA")
+          L2=$(sed -n "2p" "$LUA")
+          L3=$(sed -n "3p" "$LUA")
+          L4=$(sed -n "4p" "$LUA")
 
-          if ! echo "$LINE1" | grep -qF "local SCRIPT_VERSION = \""; then
-            echo "Skipping — line 1 mismatch"
-            exit 0
-          fi
-          EXP2="local SCRIPT_VERSION_DISPLAY = \"7.\"..SCRIPT_VERSION"
-          if [ "$LINE2" != "$EXP2" ]; then
-            echo "Skipping — line 2 mismatch"
-            exit 0
-          fi
-          EXP3="local VERSION_URL = \"https://raw.githubusercontent.com/binx-ux/airhub-binxix-v7/main/VERSION\""
-          if [ "$LINE3" != "$EXP3" ]; then
-            echo "Skipping — line 3 mismatch: $LINE3"
-            exit 0
-          fi
-          EXP4="local INTEGRITY_HASH = \"binxix_v7_official\""
-          if [ "$LINE4" != "$EXP4" ]; then
-            echo "Skipping — line 4 mismatch"
-            exit 0
-          fi
-          echo "V7 header validated"
+          echo "L1: $L1"
+          echo "L2: $L2"
+          echo "L3: $L3"
+          echo "L4: $L4"
 
-          # ── Offline / maintenance check ──
-          LOWER_MSG=$(echo "$FIRST_LINE" | tr "[:upper:]" "[:lower:]")
-          if echo "$LOWER_MSG" | grep -qE "(offline|updating)"; then
-            echo "Sending offline embed"
-            SAFE_MSG=$(echo "$FIRST_LINE" | sed "s/[\"\\\\]//g")
-            curl -s -o /dev/null -w "%{http_code}" \
+          WANT_L2="local SCRIPT_VERSION_DISPLAY = \"7.\"..SCRIPT_VERSION"
+          WANT_L3="local VERSION_URL = \"https://raw.githubusercontent.com/binx-ux/airhub-binxix-v7/main/VERSION\""
+          WANT_L4="local INTEGRITY_HASH = \"binxix_v7_official\""
+
+          echo "$L1" | grep -qF "local SCRIPT_VERSION = " || { echo ">> L1 mismatch — skipping"; exit 0; }
+          [ "$L2" = "$WANT_L2" ] || { echo ">> L2 mismatch — skipping"; exit 0; }
+          [ "$L3" = "$WANT_L3" ] || { echo ">> L3 mismatch — skipping: $L3"; exit 0; }
+          [ "$L4" = "$WANT_L4" ] || { echo ">> L4 mismatch — skipping"; exit 0; }
+
+          echo ">> Header OK"
+
+          # ────────────────────────────────────────
+          # OFFLINE / MAINTENANCE MODE
+          # If commit message contains offline or
+          # updating, send a red status embed only.
+          # ────────────────────────────────────────
+          LOWER=$(echo "$MSG" | tr "[:upper:]" "[:lower:]")
+          if echo "$LOWER" | grep -qE "offline|updating"; then
+            echo ">> Sending offline embed"
+            SAFE=$(echo "$MSG" | sed "s/[\"\`\\\\]//g")
+            curl -fsSL \
               -H "Content-Type: application/json" \
-              -d "{\"username\":\"Binxix Hub V7\",\"embeds\":[{\"title\":\"Binxix Hub — Offline / Updating\",\"color\":15158332,\"description\":\"**Binxix Hub is currently offline.**\\n\\nPlease wait — back online shortly.\",\"fields\":[{\"name\":\"Pushed by\",\"value\":\"${AUTHOR}\",\"inline\":true},{\"name\":\"Commit\",\"value\":\"${SHORT_SHA}\",\"inline\":true}],\"footer\":{\"text\":\"${REPO}\"},\"timestamp\":\"${TIMESTAMP}\"}]}" \
-              "$DISCORD_WEBHOOK"
+              -d "{\"username\":\"Binxix Hub\",\"embeds\":[{\"title\":\"Binxix Hub is Offline\",\"color\":15158332,\"description\":\"An update is being pushed. Do not execute until you see the next update ping.\",\"fields\":[{\"name\":\"Message\",\"value\":\"$SAFE\",\"inline\":false},{\"name\":\"By\",\"value\":\"$AUTHOR\",\"inline\":true},{\"name\":\"Commit\",\"value\":\"$SHORT\",\"inline\":true}],\"footer\":{\"text\":\"$REPO\"},\"timestamp\":\"$TIMESTAMP\"}]}" \
+              "$WEBHOOK"
             exit 0
           fi
 
-          # ── Version bump ──
-          if [ -f "VERSION" ]; then
-            BUILD_NUM=$(cat VERSION | tr -d "[:space:]")
+          # ────────────────────────────────────────
+          # VERSION BUMP
+          # Read VERSION file, increment, write back
+          # ────────────────────────────────────────
+          if [ -f VERSION ]; then
+            NUM=$(cat VERSION | tr -d "[:space:]")
           else
-            BUILD_NUM=0
+            NUM=0
           fi
-          BUILD_NUM=$((BUILD_NUM + 1))
-          PADDED=$(printf "%03d" "$BUILD_NUM")
-          VERSION="v7.${PADDED}"
-          echo "$BUILD_NUM" > VERSION
-          git config user.name "github-actions[bot]"
+          NUM=$((NUM + 1))
+          PAD=$(printf "%03d" "$NUM")
+          VER="v7.$PAD"
+
+          echo "$NUM" > VERSION
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add VERSION
-          git commit -m "[auto] version bump to ${VERSION}" || true
+          git commit -m "[auto] version bump to $VER" || true
           git push || true
-          echo "Version: $VERSION"
+          echo ">> Version: $VER"
 
-          # ── Build diff summary ──
+          # ────────────────────────────────────────
+          # DIFF SUMMARY
+          # ────────────────────────────────────────
           STATS=""
-          CHANGES=""
-          if [ -n "$PARENT_SHA" ] && git diff --name-only "$PARENT_SHA" HEAD | grep -qF "$SOURCE_FILE"; then
-            INS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk "{print \$1}")
-            DEL=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk "{print \$2}")
+          DETAILS=""
+
+          if [ -n "$PARENT" ] && git diff --name-only "$PARENT" HEAD | grep -qF "$LUA"; then
+            INS=$(git diff --numstat "$PARENT" HEAD -- "$LUA" | awk "{print \$1}")
+            DEL=$(git diff --numstat "$PARENT" HEAD -- "$LUA" | awk "{print \$2}")
             STATS="+${INS:-0} / -${DEL:-0} lines"
 
-            ADDED=$(git diff "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | grep "^+" | grep -v "^+++" || true)
+            ADDED=$(git diff "$PARENT" HEAD -- "$LUA" | grep "^+" | grep -v "^+++" || true)
 
-            NEW_FUNCS=$(echo "$ADDED" | grep -oP "(?:local\s+)?function\s+\K\w+" 2>/dev/null | sort -u | head -8 | tr "\n" " " || true)
-            [ -n "$NEW_FUNCS" ] && CHANGES="${CHANGES}New functions: ${NEW_FUNCS}\n"
+            FUNCS=$(echo "$ADDED" | grep -oP "function \K\w+" 2>/dev/null | sort -u | head -6 | tr "\n" " " || true)
+            [ -n "$FUNCS" ] && DETAILS="${DETAILS}Functions: $FUNCS\n"
 
-            NEW_TOGGLES=$(echo "$ADDED" | grep -oP "toggle.*\"\\K[^\"]+" 2>/dev/null | head -6 | tr "\n" ", " || true)
-            [ -n "$NEW_TOGGLES" ] && CHANGES="${CHANGES}New toggles: ${NEW_TOGGLES}\n"
-
-            NEW_GAMES=$(echo "$ADDED" | grep -oP "\{name\s*=\s*\"\K[^\"]+" 2>/dev/null | head -4 | tr "\n" ", " || true)
-            [ -n "$NEW_GAMES" ] && CHANGES="${CHANGES}New games: ${NEW_GAMES}\n"
+            GAMES=$(echo "$ADDED" | grep -oP "name=\"\K[^\"]+" 2>/dev/null | head -4 | tr "\n" ", " || true)
+            [ -n "$GAMES" ] && DETAILS="${DETAILS}Games: $GAMES\n"
           fi
 
-          # ── Build description ──
-          SAFE_MSG=$(echo "$FIRST_LINE" | sed "s/[\"\\\\]//g")
-          DESC="${SAFE_MSG}"
-          [ -n "$STATS" ]   && DESC="${DESC}\\n${STATS}"
-          [ -n "$CHANGES" ] && DESC="${DESC}\\n${CHANGES}"
-          [ -z "$CHANGES" ] && DESC="${DESC}\\nMinor update"
+          # ────────────────────────────────────────
+          # BUILD DESCRIPTION
+          # ────────────────────────────────────────
+          SAFE_MSG=$(echo "$MSG" | sed "s/[\"\`\\\\]//g")
+          DESC="$SAFE_MSG"
+          [ -n "$STATS"   ] && DESC="$DESC\n$STATS"
+          [ -n "$DETAILS" ] && DESC="$DESC\n$DETAILS"
+          [ -z "$DETAILS" ] && DESC="$DESC\nGeneral update"
 
-          if [ "${#DESC}" -gt 3800 ]; then
-            DESC="${DESC:0:3750}... and more"
+          if [ "${#DESC}" -gt 3500 ]; then
+            DESC="${DESC:0:3450}\n...truncated"
           fi
 
-          # ── Send embed ──
-          PAYLOAD="{\"username\":\"Binxix Hub V7\",\"embeds\":[{\"title\":\"Binxix Hub ${VERSION}\",\"url\":\"${COMMIT_URL}\",\"color\":10181558,\"description\":\"${DESC}\",\"fields\":[{\"name\":\"Version\",\"value\":\"${VERSION}\",\"inline\":true},{\"name\":\"Commit\",\"value\":\"${SHORT_SHA}\",\"inline\":true},{\"name\":\"By\",\"value\":\"${AUTHOR}\",\"inline\":true}],\"footer\":{\"text\":\"${REPO}\"},\"timestamp\":\"${TIMESTAMP}\"}]}"
+          # ────────────────────────────────────────
+          # SEND EMBED
+          # JSON is one line — no heredocs needed,
+          # no single quotes, no YAML conflicts.
+          # ────────────────────────────────────────
+          JSON="{\"username\":\"Binxix Hub\",\"embeds\":[{\"title\":\"Binxix Hub $VER\",\"url\":\"$COMMIT_URL\",\"color\":10181558,\"description\":\"$DESC\",\"fields\":[{\"name\":\"Version\",\"value\":\"$VER\",\"inline\":true},{\"name\":\"Commit\",\"value\":\"[$SHORT]($COMMIT_URL)\",\"inline\":true},{\"name\":\"By\",\"value\":\"$AUTHOR\",\"inline\":true}],\"footer\":{\"text\":\"$REPO\"},\"timestamp\":\"$TIMESTAMP\"}]}"
 
-          echo "Sending payload..."
-          HTTP_CODE=$(curl -s -o /tmp/discord_resp.txt -w "%{http_code}" \
+          echo ">> Sending to Discord..."
+          CODE=$(curl -s -o /tmp/dc.txt -w "%{http_code}" \
             -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "$DISCORD_WEBHOOK")
+            -d "$JSON" \
+            "$WEBHOOK")
 
-          echo "HTTP $HTTP_CODE"
-          cat /tmp/discord_resp.txt || true
+          echo "HTTP $CODE"
+          cat /tmp/dc.txt
 
-          if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
-            echo "Sent — ${VERSION}"
+          if [ "$CODE" = "204" ] || [ "$CODE" = "200" ]; then
+            echo ">> Sent — $VER"
           else
-            echo "Failed (HTTP $HTTP_CODE) — sending fallback plaintext"
-            curl -s -H "Content-Type: application/json" \
-              -d "{\"username\":\"Binxix Hub V7\",\"content\":\"${VERSION} — ${SAFE_MSG}\"}" \
-              "$DISCORD_WEBHOOK"
+            echo ">> Embed failed, trying plaintext fallback"
+            curl -fsSL \
+              -H "Content-Type: application/json" \
+              -d "{\"username\":\"Binxix Hub\",\"content\":\"$VER pushed by $AUTHOR — $SAFE_MSG\"}" \
+              "$WEBHOOK" && echo ">> Fallback sent" || echo ">> Fallback also failed"
           fi
