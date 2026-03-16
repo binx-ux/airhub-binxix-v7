@@ -1,11 +1,8 @@
-local SCRIPT_VERSION = "002"
+local SCRIPT_VERSION = "003"
 local SCRIPT_VERSION_DISPLAY = "7."..SCRIPT_VERSION
-local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/VERSION"
+local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/binxix-hub-v7/main/VERSION"
 local INTEGRITY_HASH = "binxix_v7_official"
 
--- Kill any previous instance of this script before starting
--- Without this, re-executing resets _G.BinxixUnloaded=false and wakes
--- up old connections that hold stale GUI frame references -> nil crash
 if _G.BinxixCleanup then
     pcall(_G.BinxixCleanup)
 end
@@ -321,10 +318,14 @@ if currentGameData.loadScript then
     local hubBtn=UILib.newButton(cf,{Size=UDim2.new(0,135,0,40),Position=UDim2.new(0,165,0,72),BackgroundColor3=Color3.fromRGB(80,40,100),BorderSizePixel=0,Text="Load Binxix Hub",TextColor3=Color3.fromRGB(200,150,255),TextSize=13,Font=Enum.Font.SourceSansBold,ZIndex=102},function() choiceMade=true; loadExternal=false end); UILib.corner(hubBtn,6)
     local timerLbl=UILib.newLabel(cf,{Text="",Size=UDim2.new(1,-16,0,14),Position=UDim2.new(0,8,0,136),TextColor3=Color3.fromRGB(100,100,110),TextSize=10,ZIndex=102,TextXAlignment=Enum.TextXAlignment.Left})
     task.spawn(function()
-        for i=10,1,-1 do if choiceMade then break end; timerLbl.Text="Auto-loading "..currentGameData.scriptName.." in "..i.."s..."; task.wait(1) end
+        for i=10,1,-1 do
+            if choiceMade then break end
+            timerLbl.Text="Auto-loading "..currentGameData.scriptName.." in "..i.."s..."
+            task.wait(1)
+        end
         if not choiceMade then choiceMade=true; loadExternal=true end
     end)
-    while not choiceMade do task.wait(0.1) end
+    while not choiceMade do task.wait(0.05) end
     if loadExternal then
         _G.BinxixUnloaded=true; extBtn:Destroy(); hubBtn:Destroy()
         local ll=UILib.newLabel(cf,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(25,25,30),Text="Loading "..currentGameData.scriptName.."...",TextColor3=Color3.fromRGB(200,200,210),TextSize=14,Font=Enum.Font.SourceSans,ZIndex=103})
@@ -341,7 +342,6 @@ local Settings = {
     Aimbot={Enabled=false,Toggle=false,LockPart="Head",Smoothness=0.15,FOVRadius=150,ShowFOV=true,FOVOpacity=0.5,RequireLOS=true,Prediction=true,PredictionAmount=0.12,MaxDistance=500,MultiTarget=false},
     Crosshair={Enabled=false,Style="Cross",Size=10,Thickness=2,Gap=4,Color=Color3.fromRGB(255,255,255),OutlineEnabled=true,OutlineColor=Color3.fromRGB(0,0,0),OutlineThickness=1,CenterDot=false,CenterDotSize=4,Opacity=1.0,DynamicSpread=false,RainbowColor=false},
     Visuals={Fullbright=false,NoFog=false,CustomFOV=false,FOVAmount=70,ShowFPS=false,ShowVelocity=false},
-    -- FIX: SpeedMethod default is "WalkSpeed" to match the enum logic
     Movement={SpeedEnabled=false,Speed=16,SpeedMethod="WalkSpeed",JumpEnabled=false,JumpPower=50,BunnyHop=false,BunnyHopSpeed=30,Fly=false,FlySpeed=50},
     Combat={FastReload=false,FastFireRate=false,AlwaysAuto=false,NoSpread=false,NoRecoil=false},
     Misc={AntiAFK=false,AutoRejoin=false,AutoTPLoop=false,AutoTPLoopDelay=0.2,AutoTPTargetName="Nearest Enemy",ChatSpammer=false,ChatSpamMessage="Binxix Hub V7 on top",ChatSpamDelay=3},
@@ -396,6 +396,8 @@ local flyBodyGyro          = nil
 local isFlying             = false
 local targetList           = {}
 local targetIndex          = 1
+-- FIX: single shared keybind-listening flag so rows don't fight each other
+local waitingForKey        = false
 
 -- ====================================================================
 -- SKELETON
@@ -439,26 +441,17 @@ local function isValidESPTarget(admin,target)
     if mode=="All (No Team Check)" then return true elseif mode=="All" then return true elseif mode=="Team" then return isSameTeam(admin,target) else return not isSameTeam(admin,target) end
 end
 local function isValidTarget(admin,target) if target==admin then return false end; if isSameTeam(admin,target) then return false end; return true end
--- FIX PERF: Cache RaycastParams per local player character - rebuild only when character changes
+
 local _losRP = RaycastParams.new()
 _losRP.FilterType = Enum.RaycastFilterType.Exclude
 local _losCachedChar = nil
 local function hasLOS(admin,target)
     local ac=admin.Character; local tc=target.Character; if not ac or not tc then return false end
     local ah=ac:FindFirstChild("Head"); local th=tc:FindFirstChild("HumanoidRootPart"); if not ah or not th then return false end
-    -- Only rebuild filter if our own character changed (not every call)
-    if ac ~= _losCachedChar then
-        _losCachedChar = ac
-        _losRP.FilterDescendantsInstances = {ac}
-    end
-    -- Target is excluded via FilterType=Exclude on just our char; we check if ray hits anything
-    -- Use a cheaper param set that only excludes local character
-    local result = Workspace:Raycast(ah.Position,(th.Position-ah.Position),_losRP)
-    -- If result hit target's own parts that's fine (means nothing in between)
-    if result == nil then return true end
-    local hitInst = result.Instance
-    -- Walk up to see if we hit the target character
-    local p = hitInst; while p do if p==tc then return true end; p=p.Parent end
+    if ac ~= _losCachedChar then _losCachedChar=ac; _losRP.FilterDescendantsInstances={ac} end
+    local result=Workspace:Raycast(ah.Position,(th.Position-ah.Position),_losRP)
+    if result==nil then return true end
+    local p=result.Instance; while p do if p==tc then return true end; p=p.Parent end
     return false
 end
 local function isInFOV(target,fovRadius)
@@ -544,35 +537,6 @@ local function createESP(target)
     data.billboard=bb; data.nameLabel=nl; data.distLabel=dl; data.healthLabel=hl; espObjects[target.UserId]=data
 end
 local function removeESP(target) local d=espObjects[target.UserId]; if d then if d.billboard then d.billboard:Destroy() end; if d.boxHighlight then d.boxHighlight:Destroy() end; espObjects[target.UserId]=nil end end
-local function updateESP()
-    if not Settings.ESP.Enabled then for _,d in pairs(espObjects) do if d.billboard then d.billboard.Enabled=false end end; return end
-    local myChar=player.Character; if not myChar then return end
-    local myHRP=myChar:FindFirstChild("HumanoidRootPart"); if not myHRP then return end
-    for _,target in ipairs(Players:GetPlayers()) do
-        if target~=player and isValidESPTarget(player,target) then
-            local tc=target.Character; if tc then
-                local th=tc:FindFirstChild("HumanoidRootPart"); local thead=tc:FindFirstChild("Head"); local thum=tc:FindFirstChild("Humanoid")
-                if th and thead and thum then
-                    if not espObjects[target.UserId] then createESP(target) end
-                    local d=espObjects[target.UserId]
-                    if d and d.billboard then
-                        d.billboard.Adornee=thead; d.billboard.Parent=tc; d.billboard.Enabled=true
-                        local dist=(myHRP.Position-th.Position).Magnitude
-                        local col=Settings.ESP.RainbowColor and Color3.fromHSV(tick()%5/5,1,1) or getESPColor(dist)
-                        if d.nameLabel then d.nameLabel.Visible=Settings.ESP.NameEnabled; d.nameLabel.Text=target.DisplayName; d.nameLabel.TextColor3=col end
-                        if d.distLabel then d.distLabel.Visible=Settings.ESP.DistanceEnabled; d.distLabel.Text=string.format("[%dm]",math.floor(dist)); d.distLabel.TextColor3=col end
-                        if d.healthLabel then d.healthLabel.Visible=Settings.ESP.HealthEnabled; d.healthLabel.Text=string.format("%d HP",math.floor(thum.Health)); d.healthLabel.TextColor3=getHealthColor(thum.Health/thum.MaxHealth) end
-                        if Settings.ESP.BoxEnabled then
-                            if not d.boxHighlight then d.boxHighlight=Instance.new("Highlight"); d.boxHighlight.Name="BinxixBoxESP"; d.boxHighlight.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop end
-                            if Settings.ESP.ChamsEnabled then d.boxHighlight.FillTransparency=Settings.ESP.ChamsFillTransparency; d.boxHighlight.FillColor=Settings.ESP.RainbowColor and Color3.fromHSV(tick()%5/5,1,1) or col else d.boxHighlight.FillTransparency=1 end
-                            d.boxHighlight.OutlineTransparency=Settings.ESP.OutlineEnabled and 0 or 1; d.boxHighlight.Parent=tc; d.boxHighlight.OutlineColor=Settings.ESP.RainbowOutline and Color3.fromHSV(tick()%5/5,1,1) or col; d.boxHighlight.Enabled=true
-                        else if d.boxHighlight then d.boxHighlight.Enabled=false end end
-                    end
-                end
-            end
-        else if espObjects[target.UserId] then removeESP(target) end end
-    end
-end
 
 -- ====================================================================
 -- NO FOG
@@ -627,7 +591,9 @@ end
 -- ====================================================================
 -- AUTO TP
 -- ====================================================================
-local autoTPTarget=nil; local autoTPLoopConn=nil
+local autoTPTarget=nil
+local autoTPRunning=false  -- FIX: flag-based loop control instead of task.cancel
+
 local function isProtected(target) local tc=target.Character; if not tc then return true end; local h=tc:FindFirstChild("Humanoid"); if not h then return true end; for _,c in ipairs(tc:GetChildren()) do if c:IsA("ForceField") then return true end end; if h:FindFirstChild("ForceField") then return true end; if h.MaxHealth>=999999 then return true end; return false end
 local function getNextTPTarget()
     local myChar=player.Character; if not myChar then return nil end; local myHRP=myChar:FindFirstChild("HumanoidRootPart"); if not myHRP then return nil end
@@ -638,17 +604,22 @@ local function getNextTPTarget()
     return nearest
 end
 local function startAutoTPLoop()
-    if autoTPLoopConn then return end
-    autoTPLoopConn=task.spawn(function()
-        while Settings.Misc.AutoTPLoop and not isUnloading and not _G.BinxixUnloaded do
+    if autoTPRunning then return end
+    autoTPRunning=true
+    task.spawn(function()
+        while autoTPRunning and Settings.Misc.AutoTPLoop and not isUnloading and not _G.BinxixUnloaded do
             local myChar=player.Character; local myHRP=myChar and myChar:FindFirstChild("HumanoidRootPart")
-            if myHRP then autoTPTarget=getNextTPTarget(); if autoTPTarget then local tc=autoTPTarget.Character; if tc then local th=tc:FindFirstChild("HumanoidRootPart"); local h=tc:FindFirstChild("Humanoid"); if th and h and h.Health>0 then local tp=th.Position; if tp.Y>=-50 and tp.Y<=2000 then local tcf=th.CFrame; local look=CFrame.lookAt(tcf.Position+tcf.LookVector*2,tcf.Position); myHRP.CFrame=look; local cam=Workspace.CurrentCamera; if cam then cam.CFrame=CFrame.lookAt(myHRP.Position+Vector3.new(0,2,0),th.Position) end end end end end end
+            if myHRP then autoTPTarget=getNextTPTarget(); if autoTPTarget then local tc=autoTPTarget.Character; if tc then local th=tc:FindFirstChild("HumanoidRootPart"); local h=tc:FindFirstChild("Humanoid"); if th and h and h.Health>0 then local tcf=th.CFrame; local look=CFrame.lookAt(tcf.Position+tcf.LookVector*2,tcf.Position); myHRP.CFrame=look; local cam=Workspace.CurrentCamera; if cam then cam.CFrame=CFrame.lookAt(myHRP.Position+Vector3.new(0,2,0),th.Position) end end end end end
             task.wait(Settings.Misc.AutoTPLoopDelay or 0.5)
         end
-        autoTPTarget=nil; autoTPLoopConn=nil
+        autoTPTarget=nil; autoTPRunning=false
     end)
 end
-local function stopAutoTPLoop() Settings.Misc.AutoTPLoop=false; autoTPTarget=nil; if autoTPLoopConn then pcall(function() task.cancel(autoTPLoopConn) end); autoTPLoopConn=nil end end
+local function stopAutoTPLoop()
+    Settings.Misc.AutoTPLoop=false
+    autoTPRunning=false
+    autoTPTarget=nil
+end
 
 -- ====================================================================
 -- ANIMATED LOADER
@@ -656,28 +627,20 @@ local function stopAutoTPLoop() Settings.Misc.AutoTPLoop=false; autoTPTarget=nil
 local function showLoader()
     local gui=UILib.newScreenGui("BinxixLoader_V7")
     UILib.newFrame(gui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=0.15,BorderSizePixel=0,ZIndex=200})
-    -- Card is 300px tall to fit all sections without overlap
     local card=UILib.newFrame(gui,{Size=UDim2.new(0,320,0,300),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,0),BackgroundColor3=Color3.fromRGB(13,13,16),BorderSizePixel=0,ZIndex=201})
     UILib.corner(card,12); UILib.stroke(card,Color3.fromRGB(48,48,58),1.2)
     local function L(p,t,pos,sz,col,ts,font,align,zi) return UILib.newLabel(p,{Text=t,Size=sz,Position=pos,TextColor3=col,TextSize=ts,Font=font or Enum.Font.Gotham,TextXAlignment=align or Enum.TextXAlignment.Center,ZIndex=zi or 202}) end
-    -- Logo ring: Y=18 H=64 -> ends 82
     local ring=UILib.newFrame(card,{Size=UDim2.new(0,64,0,64),AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,18),BackgroundColor3=Color3.fromRGB(22,22,28),BorderSizePixel=0,ZIndex=202}); UILib.corner(ring,100); UILib.stroke(ring,Color3.fromRGB(60,55,72),1.5)
     local letter=L(ring,"B",UDim2.new(0,0,0,0),UDim2.new(1,0,1,0),Color3.fromRGB(200,140,255),28,Enum.Font.GothamBold,Enum.TextXAlignment.Center,203); letter.TextYAlignment=Enum.TextYAlignment.Center
-    -- Title row: Y=92 H=18 -> ends 110
     L(card,"binxix hub",UDim2.new(0,0,0,92),UDim2.new(0.54,0,0,18),Color3.fromRGB(220,220,228),15,Enum.Font.GothamBold,Enum.TextXAlignment.Right)
     L(card,"  v"..SCRIPT_VERSION_DISPLAY,UDim2.new(0.55,0,0,92),UDim2.new(0.45,0,0,18),Color3.fromRGB(90,210,130),14,Enum.Font.GothamBold,Enum.TextXAlignment.Left)
-    -- guns.lol bar: Y=118 H=36 -> ends 154
     local gr=UILib.newFrame(card,{Size=UDim2.new(1,-24,0,36),Position=UDim2.new(0,12,0,118),BackgroundColor3=Color3.fromRGB(58,46,88),BorderSizePixel=0,ZIndex=202}); UILib.corner(gr,8); UILib.stroke(gr,Color3.fromRGB(108,78,178),1.2)
     L(gr,"guns.lol",UDim2.new(0,12,0,0),UDim2.new(0.55,0,1,0),Color3.fromRGB(220,215,240),13,Enum.Font.GothamBold,Enum.TextXAlignment.Left,203)
     L(gr,"@binxix",UDim2.new(0.55,0,0,0),UDim2.new(0.4,0,1,0),Color3.fromRGB(160,120,255),12,Enum.Font.Gotham,Enum.TextXAlignment.Right,203)
-    -- Stage label: Y=162 H=14 -> ends 176
     local statusLbl=L(card,"Initializing...",UDim2.new(0,12,0,162),UDim2.new(1,-80,0,14),Color3.fromRGB(140,140,155),11,Enum.Font.Gotham,Enum.TextXAlignment.Left)
-    -- Pct label: Y=162 H=14, right side — same row as status, no overlap with bar
     local pctLbl=L(card,"0%",UDim2.new(1,-44,0,162),UDim2.new(0,36,0,14),Color3.fromRGB(175,100,220),11,Enum.Font.GothamBold,Enum.TextXAlignment.Right)
-    -- Progress track: Y=182 H=6 -> ends 188 (clear gap below status row)
     local track=UILib.newFrame(card,{Size=UDim2.new(1,-24,0,6),Position=UDim2.new(0,12,0,182),BackgroundColor3=Color3.fromRGB(30,30,36),BorderSizePixel=0,ZIndex=202}); UILib.corner(track,4)
     local fill=UILib.newFrame(track,{Size=UDim2.new(0,0,1,0),BackgroundColor3=Color3.fromRGB(175,100,220),BorderSizePixel=0,ZIndex=203}); UILib.corner(fill,4)
-    -- Info label: Y=196 H=52 -> ends 248 (well within 300px card)
     local infoLbl=L(card,"",UDim2.new(0,12,0,196),UDim2.new(1,-24,0,52),Color3.fromRGB(100,100,112),10,Enum.Font.Gotham,Enum.TextXAlignment.Left); infoLbl.TextWrapped=true; infoLbl.TextYAlignment=Enum.TextYAlignment.Top
     if not checkIntegrity() then infoLbl.Text="Warning: Script integrity check failed. This may be a tampered version."; infoLbl.TextColor3=Color3.fromRGB(255,120,60)
     elseif isWeakExecutor() then infoLbl.Text="Note: Weak executor detected ("..getExecutorName().."). Some features may not work as expected."; infoLbl.TextColor3=Color3.fromRGB(255,200,60)
@@ -719,7 +682,7 @@ local function createGUI()
     local function resetSkel() for i=1,sIdx do sPool[i].Visible=false end; sIdx=0 end
     local function getSkelLine() sIdx=sIdx+1; if sIdx>SPOOL then sIdx=SPOOL; return nil end; return sPool[sIdx] end
 
-    -- PERF FIX: Arrow pool — pre-allocate arrows, never destroy/create per frame
+    -- ARROW POOL
     local arrowCont=UILib.newFrame(screenGui,{Name="ArrowCont",Size=UDim2.new(1,0,1,0),BackgroundTransparency=1})
     local APOOL=20; local aPool={}
     for i=1,APOOL do
@@ -743,10 +706,7 @@ local function createGUI()
     local targetHL=nil
 
     -- ================================================================
-    -- PERF FIX: ONE unified RenderStepped loop for ALL visual drawing.
-    -- Was: 10 separate RenderStepped connections each with their own overhead.
-    -- Now: single loop, GetPlayers() called ONCE, WorldToViewportPoint cached
-    --      per player per frame so ESP + tracer + skeleton all share the result.
+    -- UNIFIED RENDER LOOP
     -- ================================================================
     table.insert(allConnections,RunService.RenderStepped:Connect(function()
         if isUnloading or _G.BinxixUnloaded then return end
@@ -758,18 +718,15 @@ local function createGUI()
         local radarOn = Settings.Radar.Enabled
         local fovOn   = Settings.Aimbot.Enabled and Settings.Aimbot.ShowFOV
 
-        -- FOV circle
         fovCircle.Size=UDim2.new(0,Settings.Aimbot.FOVRadius*2,0,Settings.Aimbot.FOVRadius*2)
         fovCircle.Visible=fovOn
         if fovOn then fovStroke.Transparency=1-Settings.Aimbot.FOVOpacity end
 
-        -- Target lock highlight
         if currentTarget and currentTarget.Character and isTracking then
             if not targetHL then targetHL=Instance.new("Highlight"); targetHL.Name="BinxixLockMarker"; targetHL.FillColor=Theme.CardHeaderBg; targetHL.FillTransparency=0.7; targetHL.OutlineColor=Theme.TextAccent; targetHL.OutlineTransparency=0; targetHL.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop end
             targetHL.Parent=currentTarget.Character
         else if targetHL then targetHL.Parent=nil end end
 
-        -- Nothing drawing? Early out
         if not espOn and not radarOn then return end
 
         local myChar=player.Character; if not myChar then return end
@@ -779,15 +736,12 @@ local function createGUI()
         local ss=cam.ViewportSize
         local myPos=myHRP.Position
 
-        -- PERF FIX: Call GetPlayers() ONCE per frame, reuse the table everywhere
         local allPlayers=Players:GetPlayers()
 
-        -- Reset draw pools
         resetTracers()
         resetSkel()
         resetArrows()
 
-        -- Tracer origin
         local tracerSP
         if tracerOn then
             if Settings.ESP.TracerOrigin=="Bottom" then tracerSP=Vector2.new(ss.X/2,ss.Y)
@@ -796,13 +750,11 @@ local function createGUI()
             else tracerSP=Vector2.new(ss.X/2,ss.Y) end
         end
 
-        -- Radar setup
         local camYaw,rh,radarScale,radarRange
         if radarOn then
             radarGui.Visible=true
             camYaw=math.atan2(-camCF.LookVector.X,-camCF.LookVector.Z)
             rh=Settings.Radar.Size/2; radarScale=Settings.Radar.Scale; radarRange=Settings.Radar.Range
-            -- Clean up disconnected radar dots
             local activeIds={}; for _,t in ipairs(allPlayers) do activeIds[t.UserId]=true end
             for uid,dot in pairs(radarDots) do if not activeIds[uid] then dot:Destroy(); radarDots[uid]=nil end end
         else
@@ -811,7 +763,6 @@ local function createGUI()
 
         local rainbowCol = (espOn and Settings.ESP.RainbowColor) and Color3.fromHSV(tick()%5/5,1,1) or nil
 
-        -- Main per-player loop — single pass for ESP + tracer + skeleton + arrows + radar
         for _,target in ipairs(allPlayers) do
             if target==player then continue end
 
@@ -823,7 +774,6 @@ local function createGUI()
             local dist=(myPos-tPos).Magnitude
             local col=rainbowCol or getESPColor(dist)
 
-            -- ---- RADAR (doesn't need viewport projection) ----
             if radarOn then
                 local rel=tPos-myPos
                 local flatDist=Vector3.new(rel.X,0,rel.Z).Magnitude
@@ -851,16 +801,18 @@ local function createGUI()
                 continue
             end
 
-            -- PERF FIX: Project HRP to viewport ONCE, reuse for tracer + arrows + ESP billboard
             local hrpSP,hrpOn=cam:WorldToViewportPoint(tPos)
             local hrpV2=hrpOn and hrpSP.Z>0 and Vector2.new(hrpSP.X,hrpSP.Y) or nil
 
-            -- ---- ESP BILLBOARD ----
+            -- FIX: Billboard parent set to tc but adornee check guards thead destruction
             if thead and thum then
                 if not espObjects[target.UserId] then createESP(target) end
                 local d=espObjects[target.UserId]
                 if d and d.billboard then
-                    d.billboard.Adornee=thead; d.billboard.Parent=tc; d.billboard.Enabled=true
+                    -- FIX: guard thead still exists before assigning adornee
+                    if thead and thead.Parent then
+                        d.billboard.Adornee=thead; d.billboard.Parent=tc; d.billboard.Enabled=true
+                    end
                     if d.nameLabel then d.nameLabel.Visible=Settings.ESP.NameEnabled; d.nameLabel.Text=target.DisplayName; d.nameLabel.TextColor3=col end
                     if d.distLabel then d.distLabel.Visible=Settings.ESP.DistanceEnabled; d.distLabel.Text=string.format("[%dm]",math.floor(dist)); d.distLabel.TextColor3=col end
                     if d.healthLabel then d.healthLabel.Visible=Settings.ESP.HealthEnabled; d.healthLabel.Text=string.format("%d HP",math.floor(thum.Health)); d.healthLabel.TextColor3=getHealthColor(thum.Health/thum.MaxHealth) end
@@ -875,7 +827,6 @@ local function createGUI()
                 end
             end
 
-            -- ---- TRACER ----
             if tracerOn and hrpV2 then
                 local line=getTracerLine()
                 if line then
@@ -888,7 +839,6 @@ local function createGUI()
                 end
             end
 
-            -- ---- OFFSCREEN ARROWS ----
             if arrowOn and dist<=(Settings.ESP.ArrowDistance) then
                 if not hrpOn or hrpSP.Z<0 then
                     local ad=getArrow()
@@ -912,7 +862,6 @@ local function createGUI()
                 end
             end
 
-            -- ---- SKELETON ---- (project per bone — unavoidable, but only when enabled)
             if skelOn and dist<=500 then
                 local skelCol=rainbowCol or getESPColor(dist)
                 local conns=tc:FindFirstChild("UpperTorso") and SKEL_R15 or SKEL_R6
@@ -933,21 +882,20 @@ local function createGUI()
                     end
                 end
             end
-        end -- end player loop
-
-        -- Hide ESP for players no longer valid
-        for uid,_ in pairs(espObjects) do
-            local found=false
-            for _,t in ipairs(allPlayers) do if t.UserId==uid then found=true; break end end
-            if not found then
-                if espObjects[uid] and espObjects[uid].billboard then espObjects[uid].billboard.Enabled=false end
-            end
         end
+
+        -- FIX: Use PlayerRemoving event instead of scanning espObjects every frame
+        -- (cleanup handled below via Players.PlayerRemoving connection)
     end))
 
-    table.insert(allConnections,Players.PlayerRemoving:Connect(function(t) if espObjects[t.UserId] then removeESP(t) end end))
+    table.insert(allConnections,Players.PlayerRemoving:Connect(function(t)
+        if espObjects[t.UserId] then removeESP(t) end
+        if radarDots[t.UserId] then radarDots[t.UserId]:Destroy(); radarDots[t.UserId]=nil end
+    end))
 
+    -- ================================================================
     -- MAIN WINDOW
+    -- ================================================================
     local WIN_W, WIN_H   = 580, 480
     local SIDEBAR_W      = 110
     local CONTENT_W      = WIN_W - SIDEBAR_W
@@ -964,7 +912,6 @@ local function createGUI()
     UILib.corner(mainFrame,8); UILib.stroke(mainFrame,Theme.WindowBorder,1.5)
     table.insert(themeCallbacks,function() mainFrame.BackgroundColor3=Theme.WindowBg end)
 
-    -- Drag
     local dragging,dragStart,startPos2=false,nil,nil
     mainFrame.InputBegan:Connect(function(input)
         if input.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true; dragStart=input.Position; startPos2=mainFrame.Position; input.Changed:Connect(function() if input.UserInputState==Enum.UserInputState.End then dragging=false end end) end
@@ -979,7 +926,6 @@ local function createGUI()
     UILib.newFrame(sidebar,{Size=UDim2.new(0,8,1,0),Position=UDim2.new(1,-8,0,0),BackgroundColor3=Theme.SidebarBg,BorderSizePixel=0})
     UILib.stroke(sidebar,Theme.SidebarBorder,1)
     local logoArea = UILib.newFrame(sidebar,{Size=UDim2.new(1,0,0,54),BackgroundColor3=Theme.SidebarBg,BorderSizePixel=0})
-    -- BINXIX: fixed height 24px at Y=6, subtitle 14px at Y=32 — no overlap
     UILib.newLabel(logoArea,{Size=UDim2.new(1,-8,0,24),Position=UDim2.new(0,8,0,6),Text="BINXIX",TextColor3=Theme.LogoText,TextSize=18,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Center})
     UILib.newLabel(logoArea,{Size=UDim2.new(1,-8,0,14),Position=UDim2.new(0,8,0,32),Text="v"..SCRIPT_VERSION_DISPLAY.." | "..currentGameData.name,TextColor3=Theme.TextDim,TextSize=9,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
     UILib.newFrame(sidebar,{Size=UDim2.new(1,-16,0,1),Position=UDim2.new(0,8,0,54),BackgroundColor3=Theme.SidebarBorder,BorderSizePixel=0})
@@ -994,7 +940,6 @@ local function createGUI()
     local tabBuilt = {}
     local activeTab= "General"
 
-    -- CONTENT AREA
     local contentArea = UILib.newFrame(mainFrame,{Name="ContentArea",Size=UDim2.new(0,CONTENT_W,1,-2),Position=UDim2.new(0,SIDEBAR_W,0,1),BackgroundColor3=Theme.ContentBg,BorderSizePixel=0,ClipsDescendants=true})
     UILib.corner(contentArea,8)
     UILib.newFrame(contentArea,{Size=UDim2.new(0,8,1,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=Theme.ContentBg,BorderSizePixel=0})
@@ -1016,7 +961,6 @@ local function createGUI()
         return body, wrapper
     end
 
-    -- FIX: Toggle now properly returns handle and has correct click zone
     local function addToggleRow(body, label, yOff, default, callback)
         local row = UILib.newFrame(body,{Size=UDim2.new(1,0,0,ROW_H),Position=UDim2.new(0,0,0,yOff),BackgroundTransparency=1,BorderSizePixel=0})
         UILib.newLabel(row,{Size=UDim2.new(1,-44,1,0),Text=label,TextColor3=Theme.TextPrimary,TextSize=11,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
@@ -1024,9 +968,9 @@ local function createGUI()
         local pill = UILib.newFrame(row,{Size=UDim2.new(0,PILL_W,0,PILL_H),Position=UDim2.new(1,-PILL_W-2,0.5,-PILL_H/2),BackgroundColor3=default and Theme.ToggleOn or Theme.ToggleOff,BorderSizePixel=0}); UILib.corner(pill,100)
         local knob = UILib.newFrame(pill,{Size=UDim2.new(0,PILL_H-4,0,PILL_H-4),Position=default and UDim2.new(1,-(PILL_H-2),0.5,-(PILL_H-4)/2) or UDim2.new(0,2,0.5,-(PILL_H-4)/2),BackgroundColor3=Theme.ToggleKnob,BorderSizePixel=0}); UILib.corner(knob,100)
         local enabled = default
-        -- FIX: Use row-level button so click zone doesn't conflict
+        -- FIX: check waitingForKey so toggle clicks don't fire during keybind capture
         UILib.newButton(row,{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="",ZIndex=2},function()
-            if isUnloading or _G.BinxixUnloaded then return end
+            if isUnloading or _G.BinxixUnloaded or waitingForKey then return end
             enabled = not enabled
             UILib.tween(pill,0.15,{BackgroundColor3=enabled and Theme.ToggleOn or Theme.ToggleOff}):Play()
             UILib.tween(knob,0.15,{Position=enabled and UDim2.new(1,-(PILL_H-2),0.5,-(PILL_H-4)/2) or UDim2.new(0,2,0.5,-(PILL_H-4)/2)}):Play()
@@ -1040,11 +984,8 @@ local function createGUI()
         }
     end
 
-    -- CRASH FIX: ONE shared slider dispatcher instead of one InputChanged per slider.
-    -- Per-slider connections held references to destroyed track frames after tab rebuilds
-    -- causing "attempt to index nil with BackgroundColor3" spam every mouse move.
+    -- SHARED SLIDER DISPATCHER
     local activeSlider = nil
-
     table.insert(allConnections,UserInputService.InputEnded:Connect(function(inp)
         if inp.UserInputType==Enum.UserInputType.MouseButton1 then activeSlider=nil end
     end))
@@ -1052,8 +993,7 @@ local function createGUI()
         if not activeSlider or inp.UserInputType~=Enum.UserInputType.MouseMovement then return end
         if isUnloading or _G.BinxixUnloaded then activeSlider=nil; return end
         local s=activeSlider
-        -- Guard ALL fields: track, fill, knob may be destroyed after tab rebuild
-        local ok, err = pcall(function()
+        local ok=pcall(function()
             if not s.track or not s.track.Parent then activeSlider=nil; return end
             if not s.fill or not s.fill.Parent then activeSlider=nil; return end
             if not s.knob or not s.knob.Parent then activeSlider=nil; return end
@@ -1074,8 +1014,8 @@ local function createGUI()
         UILib.newLabel(row,{Size=UDim2.new(0.55,0,0,14),Text=label,TextColor3=Theme.TextSecondary,TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
         local valLbl=UILib.newLabel(row,{Size=UDim2.new(0.35,0,0,14),Position=UDim2.new(0.6,0,0,0),Text=tostring(default),TextColor3=Theme.TextAccent,TextSize=10,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Right})
         local track=UILib.newFrame(row,{Size=UDim2.new(1,0,0,4),Position=UDim2.new(0,0,0,18),BackgroundColor3=Theme.SliderTrack,BorderSizePixel=0}); UILib.corner(track,4)
-        local fill=UILib.newFrame(track,{Size=UDim2.new((default-min)/(max-min),0,1,0),BackgroundColor3=Theme.SliderFill,BorderSizePixel=0}); UILib.corner(fill,4)
-        local knob=UILib.newFrame(track,{Size=UDim2.new(0,10,0,10),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new((default-min)/(max-min),0,0.5,0),BackgroundColor3=Theme.SliderKnob,BorderSizePixel=0}); UILib.corner(knob,100)
+        local fill=UILib.newFrame(track,{Size=UDim2.new((default-min)/math.max(max-min,0.0001),0,1,0),BackgroundColor3=Theme.SliderFill,BorderSizePixel=0}); UILib.corner(fill,4)
+        local knob=UILib.newFrame(track,{Size=UDim2.new(0,10,0,10),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new((default-min)/math.max(max-min,0.0001),0,0.5,0),BackgroundColor3=Theme.SliderKnob,BorderSizePixel=0}); UILib.corner(knob,100)
         UILib.newButton(row,{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text=""},nil).MouseButton1Down:Connect(function()
             if isUnloading or _G.BinxixUnloaded then return end
             activeSlider={track=track,fill=fill,knob=knob,valLbl=valLbl,min=min,max=max,callback=callback}
@@ -1083,7 +1023,7 @@ local function createGUI()
         return row
     end
 
-    -- FIX: Enum row height corrected from ROW_H+22 to ROW_H+26
+    -- FIX: addEnumRow — proper idx capture, initial highlight, theme callback
     local function addEnumRow(body, label, yOff, options, default, callback)
         local ROW2 = ROW_H + 26
         local row = UILib.newFrame(body,{Size=UDim2.new(1,0,0,ROW2),Position=UDim2.new(0,0,0,yOff),BackgroundTransparency=1,BorderSizePixel=0})
@@ -1092,29 +1032,78 @@ local function createGUI()
         local perBtn = math.floor(btnRowW / math.max(#options,1)) - 1
         local selected = default
         local btns = {}
+
+        -- FIX: centralised highlight function so all buttons update correctly
+        local function setSelected(idx)
+            selected = options[idx]
+            for i,b in ipairs(btns) do
+                b.BackgroundColor3 = i==idx and Theme.EnumBgActive or Theme.EnumBg
+                b.TextColor3 = i==idx and Theme.EnumTextActive or Theme.EnumText
+            end
+        end
+
         for i,opt in ipairs(options) do
-            local isActive = opt==default
-            local eb=UILib.newButton(row,{Size=UDim2.new(0,perBtn,0,18),Position=UDim2.new(0,(i-1)*(perBtn+2),0,16),BackgroundColor3=isActive and Theme.EnumBgActive or Theme.EnumBg,BorderSizePixel=0,Text=opt,TextColor3=isActive and Theme.EnumTextActive or Theme.EnumText,TextSize=9,Font=Enum.Font.GothamBold},function()
-                if isUnloading or _G.BinxixUnloaded then return end
-                selected=opt
-                for _,b in ipairs(btns) do b.BackgroundColor3=Theme.EnumBg; b.TextColor3=Theme.EnumText end
-                eb.BackgroundColor3=Theme.EnumBgActive; eb.TextColor3=Theme.EnumTextActive
+            local idx = i  -- FIX: capture by value so each closure has correct index
+            local eb=UILib.newButton(row,{
+                Size=UDim2.new(0,perBtn,0,18),
+                Position=UDim2.new(0,(i-1)*(perBtn+2),0,16),
+                BackgroundColor3=opt==default and Theme.EnumBgActive or Theme.EnumBg,
+                BorderSizePixel=0,
+                Text=opt,
+                TextColor3=opt==default and Theme.EnumTextActive or Theme.EnumText,
+                TextSize=9,
+                Font=Enum.Font.GothamBold
+            },function()
+                if isUnloading or _G.BinxixUnloaded or waitingForKey then return end
+                setSelected(idx)
                 if callback then callback(opt) end
-            end); UILib.corner(eb,4)
+            end)
+            UILib.corner(eb,4)
             table.insert(btns,eb)
         end
+
+        -- FIX: apply initial highlight after btns table is fully built
+        for i,opt in ipairs(options) do
+            if opt==default then setSelected(i); break end
+        end
+
+        -- FIX: re-apply correct highlight on theme change
+        table.insert(themeCallbacks,function()
+            for i,b in ipairs(btns) do
+                b.BackgroundColor3 = options[i]==selected and Theme.EnumBgActive or Theme.EnumBg
+                b.TextColor3 = options[i]==selected and Theme.EnumTextActive or Theme.EnumText
+            end
+        end)
+
         return row
     end
 
-    local waitingForAnyKey = false
+    -- FIX: addKeybindRow — uses shared waitingForKey flag + deferred callback so the
+    -- captured key press doesn't also fire the global action handler in the same event cycle
     local function addKeybindRow(body, label, yOff, default, callback)
         local row = UILib.newFrame(body,{Size=UDim2.new(1,0,0,ROW_H),Position=UDim2.new(0,0,0,yOff),BackgroundTransparency=1,BorderSizePixel=0})
         UILib.newLabel(row,{Size=UDim2.new(1,-60,1,0),Text=label,TextColor3=Theme.TextSecondary,TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left})
         local kbBtn=UILib.newButton(row,{Size=UDim2.new(0,48,0,18),Position=UDim2.new(1,-50,0.5,-9),BackgroundColor3=Theme.KeybindBg,BorderSizePixel=0,Text=default.Name,TextColor3=Theme.KeybindText,TextSize=9,Font=Enum.Font.GothamBold}); UILib.corner(kbBtn,4)
         local cur=default
-        kbBtn.MouseButton1Click:Connect(function() if waitingForAnyKey then return end; waitingForAnyKey=true; kbBtn.Text="..."; kbBtn.TextColor3=Color3.fromRGB(255,255,100) end)
+        kbBtn.MouseButton1Click:Connect(function()
+            if waitingForKey then return end
+            waitingForKey=true; kbBtn.Text="..."; kbBtn.TextColor3=Color3.fromRGB(255,255,100)
+        end)
         table.insert(allConnections,UserInputService.InputBegan:Connect(function(inp,gp)
-            if waitingForAnyKey and inp.UserInputType==Enum.UserInputType.Keyboard then cur=inp.KeyCode; kbBtn.Text=inp.KeyCode.Name; kbBtn.TextColor3=Theme.KeybindText; waitingForAnyKey=false; if callback then callback(cur) end end
+            if not waitingForKey then return end
+            if inp.UserInputType~=Enum.UserInputType.Keyboard then return end
+            -- Clear flag FIRST so global handler sees waitingForKey=false
+            -- but use task.defer so the callback (which updates Settings.Keybinds.X)
+            -- runs AFTER the current InputBegan event has fully propagated.
+            -- Without defer: captured key updates Settings.Keybinds.ToggleAutoTP = L,
+            -- then global handler checks input.KeyCode==Settings.Keybinds.ToggleAutoTP
+            -- which NOW equals L, so it fires the action immediately.
+            cur=inp.KeyCode
+            kbBtn.Text=inp.KeyCode.Name; kbBtn.TextColor3=Theme.KeybindText
+            waitingForKey=false
+            task.defer(function()
+                if callback then callback(cur) end
+            end)
         end))
         return row
     end
@@ -1161,21 +1150,20 @@ local function createGUI()
         local n = page:FindFirstChild("_col2Y"); if not n then n=Instance.new("NumberValue"); n.Name="_col2Y"; n.Value=CONTENT_PAD; n.Parent=page end; return n
     end
 
-    -- FIX: addCard properly calculates row heights matching actual widget heights
     local function addCard(page, col, title, rows)
-        local h = 6  -- top padding (matches bodyPad PaddingTop=4 + breathing room)
+        local h = 6
         for _,r in ipairs(rows) do
-            if r[1]=="toggle"  then h=h+ROW_H+2       -- widget=30, gap=2
-            elseif r[1]=="slider"  then h=h+ROW_H+10  -- widget=38, gap=2
-            elseif r[1]=="enum"    then h=h+ROW_H+28  -- widget=56, gap=2
-            elseif r[1]=="keybind" then h=h+ROW_H+2   -- widget=30, gap=2
-            elseif r[1]=="button"  then h=h+26         -- widget=22, gap=4 (matches step)
-            elseif r[1]=="info"    then h=h+18         -- widget=16, gap=2
-            elseif r[1]=="divider" then h=h+6          -- 1px line + padding
-            elseif r[1]=="input"   then h=h+26         -- widget=22, gap=4
+            if r[1]=="toggle"  then h=h+ROW_H+2
+            elseif r[1]=="slider"  then h=h+ROW_H+10
+            elseif r[1]=="enum"    then h=h+ROW_H+28
+            elseif r[1]=="keybind" then h=h+ROW_H+2
+            elseif r[1]=="button"  then h=h+26
+            elseif r[1]=="info"    then h=h+18
+            elseif r[1]=="divider" then h=h+6
+            elseif r[1]=="input"   then h=h+26
             end
         end
-        h = h + 4  -- bottom padding so last row doesn't clip card border
+        h = h + 4
         local x = col==1 and COL1_X or COL2_X
         local yVal = col==1 and col1Y(page) or col2Y(page)
         local body, wrapper = makeCard(page, title, x, yVal.Value, CARD_W, h)
@@ -1236,40 +1224,34 @@ local function createGUI()
     -- ================================================================
 
     -- ---- GENERAL ----
+    -- FIX: speedVel declared here so General tab callbacks and Heartbeat share it
+    local speedVel = nil
+
     tabBuilders["General"] = function(page)
         if not currentGameData.noMovement then
-            -- FIX: Speed toggle now properly applies/removes WalkSpeed immediately
             addCard(page,1,"Speed",{
                 {"toggle","Speed Boost",Settings.Movement.SpeedEnabled,function(e)
                     Settings.Movement.SpeedEnabled=e
-                    if Settings.Movement.SpeedMethod=="WalkSpeed" then
-                        local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then
-                            h.WalkSpeed = e and Settings.Movement.Speed or 16
-                        end end
-                    end
                     if not e then
+                        -- FIX: destroy velocity and reset WalkSpeed on disable
+                        if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
                         local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=16 end end
                     end
                 end},
                 {"slider","Speed",1,300,Settings.Movement.Speed,function(v)
                     Settings.Movement.Speed=v
-                    -- FIX: Apply immediately if enabled and using WalkSpeed method
+                    -- apply immediately if using WalkSpeed method
                     if Settings.Movement.SpeedEnabled and Settings.Movement.SpeedMethod=="WalkSpeed" then
                         local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=v end end
                     end
                 end},
-                -- FIX: Method enum maps correctly and resets/applies on switch
+                -- FIX: method enum uses correct map, cleans up velocity before switching
                 {"enum","Method",{"Walk","CFrame","Vel"},"Walk",function(v)
                     local m={Walk="WalkSpeed",CFrame="CFrame",Vel="Velocity"}
+                    -- destroy old velocity before switching methods
+                    if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
+                    local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=16 end end
                     Settings.Movement.SpeedMethod=m[v] or "WalkSpeed"
-                    -- Reset WalkSpeed when switching away from WalkSpeed method
-                    local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then
-                        if Settings.Movement.SpeedMethod=="WalkSpeed" and Settings.Movement.SpeedEnabled then
-                            h.WalkSpeed=Settings.Movement.Speed
-                        else
-                            h.WalkSpeed=16
-                        end
-                    end end
                 end},
             })
             addCard(page,1,"Jump & Bhop",{
@@ -1357,8 +1339,9 @@ local function createGUI()
             {"info","Tab = cycle targets when Multi-Target on",Theme.TextDim},
         })
         addCard(page,1,"Aim Config",{
-            {"slider","Smoothness",0.05,1,Settings.Aimbot.Smoothness,function(v) Settings.Aimbot.Smoothness=v end},
-            {"slider","Prediction Amt",0.05,0.3,Settings.Aimbot.PredictionAmount,function(v) Settings.Aimbot.PredictionAmount=v end},
+            -- FIX: smoothness displayed as 0-100 int to avoid confusing decimal display
+            {"slider","Smoothness",1,100,math.floor(Settings.Aimbot.Smoothness*100),function(v) Settings.Aimbot.Smoothness=v/100 end},
+            {"slider","Prediction Amt",1,30,math.floor(Settings.Aimbot.PredictionAmount*100),function(v) Settings.Aimbot.PredictionAmount=v/100 end},
             {"slider","Max Distance",100,1000,Settings.Aimbot.MaxDistance,function(v) Settings.Aimbot.MaxDistance=v end},
             {"enum","Lock Part",{"Head","HRP","UTorso","Torso"},"Head",function(v)
                 local m={Head="Head",HRP="HumanoidRootPart",UTorso="UpperTorso",Torso="Torso"}
@@ -1368,6 +1351,7 @@ local function createGUI()
         addCard(page,2,"FOV",{
             {"toggle","Show FOV Circle",Settings.Aimbot.ShowFOV,function(e) Settings.Aimbot.ShowFOV=e end},
             {"slider","FOV Radius",50,400,Settings.Aimbot.FOVRadius,function(v) Settings.Aimbot.FOVRadius=v end},
+            -- FIX: opacity displayed as 0-100 int
             {"slider","FOV Opacity",0,100,math.floor(Settings.Aimbot.FOVOpacity*100),function(v) Settings.Aimbot.FOVOpacity=v/100 end},
         })
     end
@@ -1391,6 +1375,7 @@ local function createGUI()
                 end},
             })
             addCard(page,1,"Chams",{
+                -- FIX: chams fill displayed as 0-100 int
                 {"slider","Chams Fill",0,100,math.floor(Settings.ESP.ChamsFillTransparency*100),function(v) Settings.ESP.ChamsFillTransparency=v/100 end},
                 {"slider","Font Size",10,24,Settings.ESP.FontSize,function(v) Settings.ESP.FontSize=v end},
             })
@@ -1440,6 +1425,7 @@ local function createGUI()
             {"slider","Gap",0,30,Settings.Crosshair.Gap,function(v) Settings.Crosshair.Gap=v end},
             {"slider","Center Dot Size",1,12,Settings.Crosshair.CenterDotSize,function(v) Settings.Crosshair.CenterDotSize=v end},
             {"slider","Outline Thick",1,4,Settings.Crosshair.OutlineThickness,function(v) Settings.Crosshair.OutlineThickness=v end},
+            -- FIX: opacity displayed as 0-100 int
             {"slider","Opacity %",0,100,math.floor(Settings.Crosshair.Opacity*100),function(v) Settings.Crosshair.Opacity=v/100 end},
         })
         local col2y = col2Y(page)
@@ -1451,25 +1437,52 @@ local function createGUI()
             local preview = UILib.newFrame(body,{Size=UDim2.new(0,16,0,16),Position=UDim2.new(1,-18,0,startY),BackgroundColor3=getColor(),BorderSizePixel=0}); UILib.corner(preview,3)
             local channels={{Color3.fromRGB(255,80,80),"R"},{Color3.fromRGB(80,220,80),"G"},{Color3.fromRGB(80,120,255),"B"}}
             local vals = {r, g, b}
-            for i,ch in ipairs(channels) do
+
+            -- Helper: sample mouse X against a track and update channel
+            local function sampleTrack(track, fill, knob, chanIdx)
+                local mx = player:GetMouse().X
+                local rx = math.clamp((mx - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+                local v = math.floor(rx * 255 + 0.5)
+                fill.Size = UDim2.new(rx, 0, 1, 0)
+                knob.Position = UDim2.new(rx, 0, 0.5, 0)
+                vals[chanIdx] = v
+                local newCol = Color3.fromRGB(vals[1], vals[2], vals[3])
+                setColor(newCol); preview.BackgroundColor3 = newCol
+            end
+
+            for i, ch in ipairs(channels) do
                 local yy = startY + (i-1)*26
+                local idx = i  -- capture by value
                 UILib.newLabel(body,{Size=UDim2.new(0,10,0,12),Position=UDim2.new(0,0,0,yy+6),Text=ch[2],TextColor3=ch[1],TextSize=9,Font=Enum.Font.GothamBold})
                 local track=UILib.newFrame(body,{Size=UDim2.new(1,-16,0,4),Position=UDim2.new(0,14,0,yy+10),BackgroundColor3=Theme.SliderTrack,BorderSizePixel=0}); UILib.corner(track,4)
                 local fill=UILib.newFrame(track,{Size=UDim2.new(vals[i]/255,0,1,0),BackgroundColor3=ch[1],BorderSizePixel=0}); UILib.corner(fill,4)
                 local knob=UILib.newFrame(track,{Size=UDim2.new(0,10,0,10),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(vals[i]/255,0,0.5,0),BackgroundColor3=Theme.ToggleKnob,BorderSizePixel=0}); UILib.corner(knob,100)
-                -- CRASH FIX: Reuse shared activeSlider dispatcher — no per-channel connection
-                -- Wrap color channel update as a slider callback so the shared handler drives it
-                local chanIdx = i
-                UILib.newButton(body,{Size=UDim2.new(1,0,0,18),Position=UDim2.new(0,0,0,yy+4),BackgroundTransparency=1,Text=""},nil).MouseButton1Down:Connect(function()
+
+                -- FIX: Use the shared activeSlider dispatcher (same as normal sliders)
+                -- but with a wider invisible hit zone that covers the full row height
+                -- Use a slightly visible background (transparency 0.99) so MouseButton1Down
+                -- fires reliably on all executors — fully transparent buttons can be skipped
+                local hitZone = Instance.new("TextButton")
+                hitZone.Size = UDim2.new(1, 0, 0, 22)
+                hitZone.Position = UDim2.new(0, 0, 0, yy + 2)
+                hitZone.BackgroundTransparency = 0.99  -- near-invisible but not fully transparent
+                hitZone.BorderSizePixel = 0
+                hitZone.Text = ""
+                hitZone.ZIndex = 5
+                hitZone.Parent = body
+
+                hitZone.MouseButton1Down:Connect(function()
                     if isUnloading or _G.BinxixUnloaded then return end
-                    -- Build a fake slider descriptor that maps 0-255 range and updates color
-                    activeSlider={track=track,fill=fill,knob=knob,
-                        valLbl=nil, -- color sliders don't need a value label
-                        min=0,max=255,
-                        callback=function(v)
-                            vals[chanIdx]=math.floor(v)
-                            local newCol=Color3.fromRGB(vals[1],vals[2],vals[3])
-                            setColor(newCol); preview.BackgroundColor3=newCol
+                    -- Sample immediately on click (point-click with no drag still works)
+                    sampleTrack(track, fill, knob, idx)
+                    -- Also register as active slider for drag
+                    activeSlider = {
+                        track = track, fill = fill, knob = knob,
+                        valLbl = nil, min = 0, max = 255,
+                        callback = function(v)
+                            vals[idx] = math.floor(v)
+                            local newCol = Color3.fromRGB(vals[1], vals[2], vals[3])
+                            setColor(newCol); preview.BackgroundColor3 = newCol
                         end
                     }
                 end)
@@ -1492,6 +1505,7 @@ local function createGUI()
             {"toggle","Enable Radar",Settings.Radar.Enabled,function(e) Settings.Radar.Enabled=e; sendNotification("Radar",e and "On" or "Off",2) end},
             {"slider","Radar Size",80,300,Settings.Radar.Size,function(v) Settings.Radar.Size=v; radarGui.Size=UDim2.new(0,v,0,v); radarGui.Position=UDim2.new(0,10,1,-v-10) end},
             {"slider","Range (studs)",50,1000,Settings.Radar.Range,function(v) Settings.Radar.Range=v end},
+            -- FIX: scale displayed as 0-100 int
             {"slider","Dot Scale",0,100,math.floor(Settings.Radar.Scale*100),function(v) Settings.Radar.Scale=v/100 end},
             {"info","Radar appears bottom-left when enabled.",Theme.TextDim},
         })
@@ -1601,6 +1615,7 @@ local function createGUI()
                 Settings.Combat.FastReload=false; Settings.Combat.FastFireRate=false; Settings.Combat.AlwaysAuto=false; Settings.Combat.NoSpread=false; Settings.Combat.NoRecoil=false
                 pcall(function() for _,e in pairs(gunOrig) do for obj,v in pairs(e) do pcall(function() obj.Value=v end) end end end)
                 pcall(function() local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=16; h.JumpPower=50 end end end)
+                if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
                 stopAutoTPLoop(); stopFly()
                 for _,conn in ipairs(allConnections) do pcall(function() conn:Disconnect() end) end
                 screenGui:Destroy()
@@ -1637,8 +1652,12 @@ local function createGUI()
         local t,sz,gap=s.Thickness,s.Size,s.Gap; local tk=s.OutlineThickness
         local dg=gap
         if s.DynamicSpread then local c=player.Character; if c then local hrp=c:FindFirstChild("HumanoidRootPart"); if hrp then local v=Vector3.new(hrp.AssemblyLinearVelocity.X,0,hrp.AssemblyLinearVelocity.Z).Magnitude; dg=gap+math.floor(v*0.15) end end end
-        local cx = chFrame.AbsoluteSize.X / 2; local cy = chFrame.AbsoluteSize.Y / 2
-        if cx == 0 or cy == 0 then return end
+        -- FIX: use AbsoluteSize with fallback to viewport size to avoid 0,0 on first frame
+        local cam=Workspace.CurrentCamera
+        local vs=cam and cam.ViewportSize or Vector2.new(800,600)
+        local asx=chFrame.AbsoluteSize.X>0 and chFrame.AbsoluteSize.X or vs.X
+        local asy=chFrame.AbsoluteSize.Y>0 and chFrame.AbsoluteSize.Y or vs.Y
+        local cx=asx/2; local cy=asy/2
         if s.Style=="Cross" or s.Style=="T-Shape" then
             if s.Style~="T-Shape" then if s.OutlineEnabled then setOL(1,cx,cy-(dg+sz/2),t,sz,oc,tk,op) end; setL(1,cx,cy-(dg+sz/2),t,sz,col,op) end
             if s.OutlineEnabled then setOL(2,cx,cy+(dg+sz/2),t,sz,oc,tk,op) end; setL(2,cx,cy+(dg+sz/2),t,sz,col,op)
@@ -1653,8 +1672,7 @@ local function createGUI()
             chCirc.Size=UDim2.new(0,sz*2,0,sz*2); chCirc.Position=UDim2.new(0,cx,0,cy); chCS.Color=col; chCS.Thickness=t; chCirc.Visible=true
             if s.CenterDot then local ds=s.CenterDotSize; chDot.Size=UDim2.new(0,ds,0,ds); chDot.BackgroundColor3=col; chDot.BackgroundTransparency=1-op; chDot.Visible=true end
         elseif s.Style=="Sniper" then
-            local screen = Workspace.CurrentCamera and Workspace.CurrentCamera.ViewportSize or Vector2.new(800,600)
-            local halfW=screen.X/2; local halfH=screen.Y/2
+            local halfW=vs.X/2; local halfH=vs.Y/2
             if s.OutlineEnabled then setOL(1,cx,cy-(dg/2+halfH/2),t,halfH-dg/2,oc,tk,op*0.7) end; setL(1,cx,cy-(dg/2+halfH/2),t,halfH-dg/2,col,op*0.7)
             if s.OutlineEnabled then setOL(2,cx,cy+(dg/2+halfH/2),t,halfH-dg/2,oc,tk,op*0.7) end; setL(2,cx,cy+(dg/2+halfH/2),t,halfH-dg/2,col,op*0.7)
             if s.OutlineEnabled then setOL(3,cx-(dg/2+halfW/2),cy,halfW-dg/2,t,oc,tk,op*0.7) end; setL(3,cx-(dg/2+halfW/2),cy,halfW-dg/2,t,col,op*0.7)
@@ -1671,8 +1689,7 @@ local function createGUI()
     -- GAMEPLAY LOOPS
     -- ================================================================
 
-    -- FIX: Speed loop — WalkSpeed method now actually sets WalkSpeed instead of returning early
-    local speedVel=nil
+    -- FIX: Speed Heartbeat — WalkSpeed enforced every frame (no conditional), proper method cleanup
     table.insert(allConnections,RunService.Heartbeat:Connect(function(dt)
         if isUnloading or _G.BinxixUnloaded then
             if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
@@ -1689,13 +1706,10 @@ local function createGUI()
         local method=Settings.Movement.SpeedMethod
         local spd=Settings.Movement.Speed
 
-        -- FIX: WalkSpeed method now properly applies speed (was broken - returned early without doing anything)
         if method=="WalkSpeed" then
+            -- FIX: destroy velocity so it doesn't conflict, enforce WalkSpeed unconditionally every frame
             if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
-            -- Continuously enforce WalkSpeed so the game can't reset it
-            if hum.WalkSpeed ~= spd then
-                hum.WalkSpeed = spd
-            end
+            hum.WalkSpeed=spd
             return
         end
 
@@ -1707,11 +1721,9 @@ local function createGUI()
 
         if method=="CFrame" then
             if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
-            -- FIX: Reset WalkSpeed so CFrame method doesn't double-stack
             hum.WalkSpeed=16
             local wm=md*spd*dt; hrp.CFrame=hrp.CFrame+Vector3.new(wm.X,0,wm.Z)
         elseif method=="Velocity" then
-            -- FIX: Reset WalkSpeed so Velocity method doesn't double-stack
             hum.WalkSpeed=16
             if not speedVel or speedVel.Parent~=hrp then
                 if speedVel then pcall(function() speedVel:Destroy() end) end
@@ -1722,23 +1734,21 @@ local function createGUI()
         end
     end))
 
-    -- Bhop (unchanged, works fine)
+    -- Bhop + FOV + Fly + FPS/Velocity merged loop
     local bhopVel=nil; local lastJump=0; local curBhop=0
-    -- PERF FIX: Merge bhop + FOV + fly + FPS/velocity into one RenderStepped (was 4 separate)
     local fpsFrame=UILib.newFrame(screenGui,{Name="FPSFrame",Size=UDim2.new(0,100,0,22),Position=UDim2.new(1,-110,0,8),BackgroundColor3=Theme.CardBg,BackgroundTransparency=0.2,BorderSizePixel=0,Visible=false}); UILib.corner(fpsFrame,5)
     local fpsLbl=UILib.newLabel(fpsFrame,{Size=UDim2.new(1,-8,1,0),Position=UDim2.new(0,4,0,0),Text="FPS: 0",TextColor3=Theme.TextAccent,TextSize=11,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left})
     local velLbl=UILib.newLabel(screenGui,{Name="VelLabel",Size=UDim2.new(0,160,0,18),Position=UDim2.new(0.5,40,0.5,26),Text="0.0 studs/s",TextColor3=Theme.CardHeaderBg,TextSize=12,Font=Enum.Font.GothamBold,TextStrokeTransparency=0.5,TextStrokeColor3=Color3.fromRGB(0,0,0),Visible=false})
-    local lastFpsUp=tick(); local fc=0; local cfps=0
+    -- FIX: FPS counter uses integer seconds boundary to avoid double-firing
+    local lastFpsTick=math.floor(tick()); local fc=0; local cfps=0
 
     table.insert(allConnections,RunService.RenderStepped:Connect(function(dt)
         if isUnloading or _G.BinxixUnloaded then return end
 
-        -- Custom FOV
         if Settings.Visuals.CustomFOV then
             local cam=Workspace.CurrentCamera; if cam and cam.FieldOfView~=Settings.Visuals.FOVAmount then cam.FieldOfView=Settings.Visuals.FOVAmount end
         end
 
-        -- Fly
         if Settings.Movement.Fly and isFlying then
             local char=player.Character; if char then
                 local hrp=char:FindFirstChild("HumanoidRootPart"); if hrp and flyBodyVelocity and flyBodyGyro then
@@ -1755,7 +1765,6 @@ local function createGUI()
             end
         elseif not Settings.Movement.Fly and isFlying then stopFly() end
 
-        -- Bhop
         if Settings.Movement.BunnyHop then
             local char=player.Character; if char then
                 local hum=char:FindFirstChild("Humanoid"); local hrp=char:FindFirstChild("HumanoidRootPart")
@@ -1780,10 +1789,12 @@ local function createGUI()
             if bhopVel then bhopVel:Destroy(); bhopVel=nil end; curBhop=0
         end
 
-        -- FPS counter + velocity display
         fpsFrame.Visible=Settings.Visuals.ShowFPS; velLbl.Visible=Settings.Visuals.ShowVelocity
         if Settings.Visuals.ShowFPS then
-            fc=fc+1; if tick()-lastFpsUp>=1 then cfps=fc; fc=0; lastFpsUp=tick() end
+            fc=fc+1
+            -- FIX: integer boundary prevents double-fire on tick() drift
+            local curSec=math.floor(tick())
+            if curSec~=lastFpsTick then cfps=fc; fc=0; lastFpsTick=curSec end
             fpsLbl.Text="FPS: "..tostring(cfps)
         end
         if Settings.Visuals.ShowVelocity then
@@ -1794,7 +1805,6 @@ local function createGUI()
     local vu=game:GetService("VirtualUser")
     table.insert(allConnections,player.Idled:Connect(function() if Settings.Misc.AntiAFK then vu:CaptureController(); vu:ClickButton2(Vector2.new()) end end))
 
-    -- PERF FIX: Gun check + chat spam merged into one Heartbeat (was 2 separate)
     local lastGunCheck=0; local lastSpam=0
     table.insert(allConnections,RunService.Heartbeat:Connect(function()
         if isUnloading or _G.BinxixUnloaded then return end
@@ -1813,7 +1823,6 @@ local function createGUI()
         end
     end))
 
-    -- Chat spy
     pcall(function()
         local tcs=game:GetService("TextChatService"); if tcs then
             local function hook(ch) if ch:IsA("TextChannel") then ch.MessageReceived:Connect(function(mo) if not chatSpyEnabled then return end; local src=mo.TextSource; if not src then return end; local sp=Players:GetPlayerByUserId(src.UserId); if not sp then return end; print("[ChatSpy] "..sp.DisplayName..": "..mo.Text) end) end end
@@ -1822,11 +1831,14 @@ local function createGUI()
     end)
     for _,p in ipairs(Players:GetPlayers()) do if p~=player then pcall(function() p.Chatted:Connect(function(msg) if chatSpyEnabled then print("[ChatSpy] "..p.DisplayName..": "..msg) end end) end) end end
     table.insert(allConnections,Players.PlayerAdded:Connect(function(p) pcall(function() p.Chatted:Connect(function(msg) if chatSpyEnabled then print("[ChatSpy] "..p.DisplayName..": "..msg) end end) end) end))
+
     -- ================================================================
-    local waitingForAnyKeyGlobal = false
+    -- INPUT HANDLER
+    -- ================================================================
     table.insert(allConnections,UserInputService.InputBegan:Connect(function(input,gp)
         if isUnloading or _G.BinxixUnloaded or gp then return end
-        if waitingForAnyKey or waitingForAnyKeyGlobal then return end
+        -- FIX: waitingForKey check is now the single shared flag — keybind rows update it
+        if waitingForKey then return end
 
         if input.KeyCode==Settings.Keybinds.ToggleGUI then mainFrame.Visible=not mainFrame.Visible end
         if input.KeyCode==Settings.Keybinds.ToggleFly then if Settings.Movement.Fly then if isFlying then stopFly() else startFly() end end end
@@ -1838,7 +1850,7 @@ local function createGUI()
         if input.KeyCode==Settings.Keybinds.PanicKey then
             Settings.ESP.Enabled=false; Settings.Aimbot.Enabled=false; Settings.Crosshair.Enabled=false; Settings.Radar.Enabled=false
             Settings.Movement.SpeedEnabled=false; Settings.Movement.Fly=false; stopFly()
-            -- FIX: Panic also resets WalkSpeed
+            if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
             local c=player.Character; if c then local h=c:FindFirstChild("Humanoid"); if h then h.WalkSpeed=16; h.JumpPower=50 end end
             mainFrame.Visible=false; sendNotification("PANIC","All features disabled",3)
         end
@@ -1867,11 +1879,11 @@ end
 -- ====================================================================
 local gui = createGUI()
 
--- Register cleanup so the NEXT execution of this script can kill these connections
--- This is what prevents stale frame references crashing on re-execute
 _G.BinxixCleanup = function()
     isUnloading = true
     _G.BinxixUnloaded = true
+    stopAutoTPLoop()
+    stopFly()
     pcall(function()
         for _,conn in ipairs(allConnections) do pcall(function() conn:Disconnect() end) end
     end)
@@ -1903,11 +1915,19 @@ end)
 task.delay(8,function()
     local ok,res=pcall(function() return game:HttpGet(VERSION_URL) end)
     if ok and res then
-        local lv=tonumber(res:match("%d+"))
-        if lv and lv>tonumber(SCRIPT_VERSION) then
-            sendNotification("Update Available","v7."..lv.." is out. You have v"..SCRIPT_VERSION_DISPLAY,8)
-        elseif lv and lv==tonumber(SCRIPT_VERSION) then
-            sendNotification("Up to Date","v"..SCRIPT_VERSION_DISPLAY.." is current",3)
+        -- Trim all whitespace/newlines so we get only the raw version string e.g. "003"
+        local remoteRaw = res:match("^%s*(%d+)%s*$")
+        local remoteNum = tonumber(remoteRaw)
+        local localNum  = tonumber(SCRIPT_VERSION)
+        if remoteNum and localNum then
+            if remoteNum > localNum then
+                -- Zero-pad remote version to 3 digits to match display format
+                local remotePadded = string.format("%03d", remoteNum)
+                sendNotification("Update Available","v7."..remotePadded.." is out. You have v"..SCRIPT_VERSION_DISPLAY,8)
+            elseif remoteNum == localNum then
+                sendNotification("Up to Date","v"..SCRIPT_VERSION_DISPLAY.." is current",3)
+            end
+            -- If remoteNum < localNum (dev build) just stay silent
         end
     end
 end)
