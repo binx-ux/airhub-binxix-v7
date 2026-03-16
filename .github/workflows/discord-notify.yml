@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'source/**'
+      - "source/**"
 
 jobs:
   notify:
@@ -18,282 +18,149 @@ jobs:
           fetch-depth: 2
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validate header and send Discord notification
+      - name: Send Discord notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          COMMIT_SHA: ${{ github.sha }}
+          AUTHOR: ${{ github.event.head_commit.author.name }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+          REPO: ${{ github.repository }}
+          TIMESTAMP: ${{ github.event.head_commit.timestamp }}
         run: |
           set -euo pipefail
 
-          # ── Commit Info ──
-          # FIX: was single-quoted so ${{ }} was never expanded by Actions
-          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -1)
-          COMMIT_SHA="${{ github.sha }}"
           SHORT_SHA="${COMMIT_SHA:0:7}"
-          AUTHOR="${{ github.event.head_commit.author.name }}"
-          COMMIT_URL="${{ github.event.head_commit.url }}"
-          REPO="${{ github.repository }}"
-          TIMESTAMP="${{ github.event.head_commit.timestamp }}"
           PARENT_SHA=$(git rev-parse HEAD~1 2>/dev/null || echo "")
 
           # Skip auto version bump commits
-          if echo "$COMMIT_MSG" | grep -q "^\[auto\] version bump"; then
-            echo "⏭️ Skipping — version bump commit"
+          FIRST_LINE=$(echo "$COMMIT_MSG" | head -1)
+          if echo "$FIRST_LINE" | grep -q "^\[auto\] version bump"; then
+            echo "Skipping version bump commit"
             exit 0
           fi
 
-          # ══════════════════════════════════════════
-          # FIND SOURCE FILE
-          # ══════════════════════════════════════════
+          # ── Find source file ──
           SOURCE_FILE=""
           for f in source/*.lua; do
-            if [ -f "$f" ]; then
-              SOURCE_FILE="$f"
-              break
-            fi
+            [ -f "$f" ] && SOURCE_FILE="$f" && break
           done
-
           if [ -z "$SOURCE_FILE" ]; then
-            echo "❌ No source/*.lua file found — aborting"
+            echo "No source/*.lua found — aborting"
             exit 0
           fi
+          echo "Source file: $SOURCE_FILE"
 
-          # ══════════════════════════════════════════
-          # VALIDATE REQUIRED HEADER (first 4 lines)
-          # ══════════════════════════════════════════
-          LINE1=$(sed -n '1p' "$SOURCE_FILE")
-          LINE2=$(sed -n '2p' "$SOURCE_FILE")
-          LINE3=$(sed -n '3p' "$SOURCE_FILE")
-          LINE4=$(sed -n '4p' "$SOURCE_FILE")
+          # ── Validate V7 header ──
+          LINE1=$(sed -n "1p" "$SOURCE_FILE")
+          LINE2=$(sed -n "2p" "$SOURCE_FILE")
+          LINE3=$(sed -n "3p" "$SOURCE_FILE")
+          LINE4=$(sed -n "4p" "$SOURCE_FILE")
 
-          EXPECTED_L1='local SCRIPT_VERSION = "'
-          EXPECTED_L2='local SCRIPT_VERSION_DISPLAY = "7."..SCRIPT_VERSION'
-          # FIX: was still pointing at old v6 repo URL — updated to v7
-          EXPECTED_L3='local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/binxix-hub-v7/main/VERSION"'
-          EXPECTED_L4='local INTEGRITY_HASH = "binxix_v7_official"'
+          echo "Header check:"
+          echo "  L1: $LINE1"
+          echo "  L2: $LINE2"
+          echo "  L3: $LINE3"
+          echo "  L4: $LINE4"
 
-          if ! echo "$LINE1" | grep -qF "$EXPECTED_L1"; then
-            echo "⏭️ Skipping — line 1 does not match V7 header (got: $LINE1)"
+          if ! echo "$LINE1" | grep -qF "local SCRIPT_VERSION = \""; then
+            echo "Skipping — line 1 mismatch"
             exit 0
           fi
-          if [ "$LINE2" != "$EXPECTED_L2" ]; then
-            echo "⏭️ Skipping — line 2 does not match V7 header"
+          EXP2="local SCRIPT_VERSION_DISPLAY = \"7.\"..SCRIPT_VERSION"
+          if [ "$LINE2" != "$EXP2" ]; then
+            echo "Skipping — line 2 mismatch"
             exit 0
           fi
-          if [ "$LINE3" != "$EXPECTED_L3" ]; then
-            echo "⏭️ Skipping — line 3 does not match V7 header (got: $LINE3)"
+          EXP3="local VERSION_URL = \"https://raw.githubusercontent.com/binx-ux/airhub-binxix-v7/main/VERSION\""
+          if [ "$LINE3" != "$EXP3" ]; then
+            echo "Skipping — line 3 mismatch: $LINE3"
             exit 0
           fi
-          if [ "$LINE4" != "$EXPECTED_L4" ]; then
-            echo "⏭️ Skipping — line 4 does not match V7 header"
+          EXP4="local INTEGRITY_HASH = \"binxix_v7_official\""
+          if [ "$LINE4" != "$EXP4" ]; then
+            echo "Skipping — line 4 mismatch"
             exit 0
           fi
+          echo "V7 header validated"
 
-          echo "✅ V7 header validated"
-
-          # ══════════════════════════════════════════
-          # DETECT OFFLINE / MAINTENANCE PUSH
-          # ══════════════════════════════════════════
-          LOWER_MSG=$(echo "$COMMIT_MSG" | tr '[:upper:]' '[:lower:]')
-
+          # ── Offline / maintenance check ──
+          LOWER_MSG=$(echo "$FIRST_LINE" | tr "[:upper:]" "[:lower:]")
           if echo "$LOWER_MSG" | grep -qE "(offline|updating)"; then
-            echo "📴 Offline/updating push detected — sending status embed"
-
-            # FIX: heredoc terminator must have NO leading whitespace when using <<EOF
-            # Using <<-EOF strips leading tabs only — so switched to unindented EOF marker
-            OFFLINE_PAYLOAD=$(cat <<'ENDJSON'
-{
-  "username": "Binxix Hub V7",
-  "embeds": [{
-    "title": "🔴 Binxix Hub — Offline / Updating",
-    "color": 15158332,
-    "description": "**Binxix Hub is currently offline while an update is being pushed.**\n\nPlease wait — the script will be back online shortly.\n\n> Do not execute the script until this message is followed by a new update ping.",
-    "fields": [
-      { "name": "Status",    "value": "🔴 Offline",   "inline": true },
-      { "name": "Pushed by", "value": "AUTHOR_PLACEHOLDER", "inline": true },
-      { "name": "Commit",    "value": "SHA_PLACEHOLDER",    "inline": true }
-    ],
-    "footer": { "text": "Binxix Hub Updates • REPO_PLACEHOLDER" },
-    "timestamp": "TIMESTAMP_PLACEHOLDER"
-  }]
-}
-ENDJSON
-)
-            # FIX: substitute values after building JSON so special chars in variables
-            # don't break the JSON structure
-            OFFLINE_PAYLOAD="${OFFLINE_PAYLOAD//AUTHOR_PLACEHOLDER/$AUTHOR}"
-            OFFLINE_PAYLOAD="${OFFLINE_PAYLOAD//SHA_PLACEHOLDER/[\`${SHORT_SHA}\`](${COMMIT_URL})}"
-            OFFLINE_PAYLOAD="${OFFLINE_PAYLOAD//REPO_PLACEHOLDER/$REPO}"
-            OFFLINE_PAYLOAD="${OFFLINE_PAYLOAD//TIMESTAMP_PLACEHOLDER/$TIMESTAMP}"
-
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-                 -H "Content-Type: application/json" \
-                 -d "$OFFLINE_PAYLOAD" \
-                 "$DISCORD_WEBHOOK")
-
-            echo "📴 Offline embed HTTP $HTTP_CODE"
+            echo "Sending offline embed"
+            SAFE_MSG=$(echo "$FIRST_LINE" | sed "s/[\"\\\\]//g")
+            curl -s -o /dev/null -w "%{http_code}" \
+              -H "Content-Type: application/json" \
+              -d "{\"username\":\"Binxix Hub V7\",\"embeds\":[{\"title\":\"Binxix Hub — Offline / Updating\",\"color\":15158332,\"description\":\"**Binxix Hub is currently offline.**\\n\\nPlease wait — back online shortly.\",\"fields\":[{\"name\":\"Pushed by\",\"value\":\"${AUTHOR}\",\"inline\":true},{\"name\":\"Commit\",\"value\":\"${SHORT_SHA}\",\"inline\":true}],\"footer\":{\"text\":\"${REPO}\"},\"timestamp\":\"${TIMESTAMP}\"}]}" \
+              "$DISCORD_WEBHOOK"
             exit 0
           fi
 
-          # ══════════════════════════════════════════
-          # SEQUENTIAL VERSION (7.x format)
-          # ══════════════════════════════════════════
+          # ── Version bump ──
           if [ -f "VERSION" ]; then
-            BUILD_NUM=$(cat VERSION | tr -d '[:space:]')
+            BUILD_NUM=$(cat VERSION | tr -d "[:space:]")
           else
             BUILD_NUM=0
           fi
-
           BUILD_NUM=$((BUILD_NUM + 1))
           PADDED=$(printf "%03d" "$BUILD_NUM")
           VERSION="v7.${PADDED}"
-
           echo "$BUILD_NUM" > VERSION
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add VERSION
           git commit -m "[auto] version bump to ${VERSION}" || true
           git push || true
+          echo "Version: $VERSION"
 
-          # ══════════════════════════════════════════
-          # DIFF source/*.lua ONLY
-          # ══════════════════════════════════════════
+          # ── Build diff summary ──
+          STATS=""
           CHANGES=""
-          STATS_LINE=""
+          if [ -n "$PARENT_SHA" ] && git diff --name-only "$PARENT_SHA" HEAD | grep -qF "$SOURCE_FILE"; then
+            INS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk "{print \$1}")
+            DEL=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk "{print \$2}")
+            STATS="+${INS:-0} / -${DEL:-0} lines"
 
-          if [ -n "$PARENT_SHA" ]; then
-            if git diff --name-only "$PARENT_SHA" HEAD | grep -qF "$SOURCE_FILE"; then
+            ADDED=$(git diff "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | grep "^+" | grep -v "^+++" || true)
 
-              INS=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk '{print $1}')
-              DEL=$(git diff --numstat "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | awk '{print $2}')
-              STATS_LINE="📄 \`${SOURCE_FILE}\` — **+${INS:-0}** / **-${DEL:-0}** lines"
+            NEW_FUNCS=$(echo "$ADDED" | grep -oP "(?:local\s+)?function\s+\K\w+" 2>/dev/null | sort -u | head -8 | tr "\n" " " || true)
+            [ -n "$NEW_FUNCS" ] && CHANGES="${CHANGES}New functions: ${NEW_FUNCS}\n"
 
-              ADDED_LINES=$(git diff "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | grep "^+" | grep -v "^+++" || true)
-              REMOVED_LINES=$(git diff "$PARENT_SHA" HEAD -- "$SOURCE_FILE" | grep "^-" | grep -v "^---" || true)
+            NEW_TOGGLES=$(echo "$ADDED" | grep -oP "toggle.*\"\\K[^\"]+" 2>/dev/null | head -6 | tr "\n" ", " || true)
+            [ -n "$NEW_TOGGLES" ] && CHANGES="${CHANGES}New toggles: ${NEW_TOGGLES}\n"
 
-              # New Games
-              NEW_GAMES=$(echo "$ADDED_LINES" | grep -oP '\{name\s*=\s*"\K[^"]+' 2>/dev/null | head -5 || true)
-              if [ -n "$NEW_GAMES" ]; then
-                GAME_LIST=""
-                while IFS= read -r g; do
-                  [ -n "$g" ] && GAME_LIST="${GAME_LIST}\`${g}\` "
-                done <<< "$NEW_GAMES"
-                [ -n "$GAME_LIST" ] && CHANGES="${CHANGES}🎮 **New Games:** ${GAME_LIST}\n"
-              fi
-
-              # New Functions
-              NEW_FUNCS=$(echo "$ADDED_LINES" | grep -oP '(?:local\s+)?function\s+\K\w+' 2>/dev/null | sort -u | head -10 || true)
-              if [ -n "$NEW_FUNCS" ]; then
-                FUNC_LIST=""
-                while IFS= read -r f; do
-                  [ -n "$f" ] && FUNC_LIST="${FUNC_LIST}\`${f}\` "
-                done <<< "$NEW_FUNCS"
-                [ -n "$FUNC_LIST" ] && CHANGES="${CHANGES}🆕 **New Functions:** ${FUNC_LIST}\n"
-              fi
-
-              # Removed Functions
-              REMOVED_FUNCS=$(echo "$REMOVED_LINES" | grep -oP '(?:local\s+)?function\s+\K\w+' 2>/dev/null | sort -u | head -10 || true)
-              if [ -n "$REMOVED_FUNCS" ]; then
-                ACTUALLY_REMOVED=""
-                while IFS= read -r rf; do
-                  if [ -n "$rf" ] && ! echo "$NEW_FUNCS" | grep -qxF "$rf"; then
-                    ACTUALLY_REMOVED="${ACTUALLY_REMOVED}\`${rf}\` "
-                  fi
-                done <<< "$REMOVED_FUNCS"
-                [ -n "$ACTUALLY_REMOVED" ] && CHANGES="${CHANGES}🗑️ **Removed Functions:** ${ACTUALLY_REMOVED}\n"
-              fi
-
-              # New Settings
-              NEW_SETTINGS=$(echo "$ADDED_LINES" | grep -P '^\+\s{4,}\w+\s*=' 2>/dev/null | grep -oP '^\+\s+\K\w+' 2>/dev/null | sort -u | head -12 || true)
-              if [ -n "$NEW_SETTINGS" ]; then
-                SETTING_LIST=""
-                COUNT=0
-                while IFS= read -r s; do
-                  if [ -n "$s" ] && [[ ! "$s" =~ ^(local|if|for|while|end|return|then|else|elseif|do|function|true|false|nil|Size|Position|Parent|Text|Name|BackgroundColor3|TextColor3|BorderSizePixel|Font|TextSize)$ ]]; then
-                    SETTING_LIST="${SETTING_LIST}\`${s}\` "
-                    COUNT=$((COUNT + 1))
-                    [ $COUNT -ge 10 ] && break
-                  fi
-                done <<< "$NEW_SETTINGS"
-                [ -n "$SETTING_LIST" ] && CHANGES="${CHANGES}⚙️ **New Settings:** ${SETTING_LIST}\n"
-              fi
-
-              # New Toggles
-              NEW_TOGGLES=$(echo "$ADDED_LINES" | grep -oP '"toggle","\K[^"]+' 2>/dev/null | head -8 || true)
-              if [ -n "$NEW_TOGGLES" ]; then
-                TOG_LIST=""
-                while IFS= read -r cb; do
-                  [ -n "$cb" ] && TOG_LIST="${TOG_LIST}• ${cb}\n"
-                done <<< "$NEW_TOGGLES"
-                [ -n "$TOG_LIST" ] && CHANGES="${CHANGES}✅ **New Toggles:**\n${TOG_LIST}"
-              fi
-
-            else
-              STATS_LINE="📄 \`${SOURCE_FILE}\` — no changes to source file"
-            fi
-          else
-            STATS_LINE="⚠️ Could not compute diff — first commit"
+            NEW_GAMES=$(echo "$ADDED" | grep -oP "\{name\s*=\s*\"\K[^\"]+" 2>/dev/null | head -4 | tr "\n" ", " || true)
+            [ -n "$NEW_GAMES" ] && CHANGES="${CHANGES}New games: ${NEW_GAMES}\n"
           fi
 
-          # ══════════════════════════════════════════
-          # BUILD DESCRIPTION
-          # FIX: sanitise COMMIT_MSG — strip quotes and backslashes that break JSON
-          # ══════════════════════════════════════════
-          SAFE_MSG=$(echo "$COMMIT_MSG" | sed 's/[\\"`]//g')
-          DESC="**${SAFE_MSG}**\n"
+          # ── Build description ──
+          SAFE_MSG=$(echo "$FIRST_LINE" | sed "s/[\"\\\\]//g")
+          DESC="${SAFE_MSG}"
+          [ -n "$STATS" ]   && DESC="${DESC}\\n${STATS}"
+          [ -n "$CHANGES" ] && DESC="${DESC}\\n${CHANGES}"
+          [ -z "$CHANGES" ] && DESC="${DESC}\\nMinor update"
 
-          [ -n "$STATS_LINE" ] && DESC="${DESC}\n${STATS_LINE}\n"
-          [ -n "$CHANGES" ]    && DESC="${DESC}\n${CHANGES}"
-
-          if [ -z "$CHANGES" ] && [[ "$STATS_LINE" != *"no changes"* ]] && [[ "$STATS_LINE" != *"Could not"* ]]; then
-            DESC="${DESC}\n🔧 Minor update"
+          if [ "${#DESC}" -gt 3800 ]; then
+            DESC="${DESC:0:3750}... and more"
           fi
 
-          if [ ${#DESC} -gt 3800 ]; then
-            DESC="${DESC:0:3750}\n\n... and more"
-          fi
+          # ── Send embed ──
+          PAYLOAD="{\"username\":\"Binxix Hub V7\",\"embeds\":[{\"title\":\"Binxix Hub ${VERSION}\",\"url\":\"${COMMIT_URL}\",\"color\":10181558,\"description\":\"${DESC}\",\"fields\":[{\"name\":\"Version\",\"value\":\"${VERSION}\",\"inline\":true},{\"name\":\"Commit\",\"value\":\"${SHORT_SHA}\",\"inline\":true},{\"name\":\"By\",\"value\":\"${AUTHOR}\",\"inline\":true}],\"footer\":{\"text\":\"${REPO}\"},\"timestamp\":\"${TIMESTAMP}\"}]}"
 
-          # ══════════════════════════════════════════
-          # SEND UPDATE EMBED TO DISCORD
-          # FIX: build JSON with placeholder substitution so variables with
-          # special characters don't silently corrupt the payload
-          # ══════════════════════════════════════════
-          PAYLOAD=$(cat <<'ENDJSON'
-{
-  "username": "Binxix Hub V7",
-  "embeds": [{
-    "title": "🚀 Binxix Hub — VERSION_PLACEHOLDER",
-    "url": "URL_PLACEHOLDER",
-    "color": 10181558,
-    "description": "DESC_PLACEHOLDER",
-    "fields": [
-      { "name": "Version",   "value": "`VERSION_PLACEHOLDER`", "inline": true },
-      { "name": "Commit",    "value": "SHA_PLACEHOLDER",        "inline": true },
-      { "name": "Pushed by", "value": "AUTHOR_PLACEHOLDER",     "inline": true }
-    ],
-    "footer": { "text": "Binxix Hub Updates • REPO_PLACEHOLDER" },
-    "timestamp": "TIMESTAMP_PLACEHOLDER"
-  }]
-}
-ENDJSON
-)
-          PAYLOAD="${PAYLOAD//VERSION_PLACEHOLDER/$VERSION}"
-          PAYLOAD="${PAYLOAD//URL_PLACEHOLDER/$COMMIT_URL}"
-          PAYLOAD="${PAYLOAD//DESC_PLACEHOLDER/$DESC}"
-          PAYLOAD="${PAYLOAD//SHA_PLACEHOLDER/[\`${SHORT_SHA}\`](${COMMIT_URL})}"
-          PAYLOAD="${PAYLOAD//AUTHOR_PLACEHOLDER/$AUTHOR}"
-          PAYLOAD="${PAYLOAD//REPO_PLACEHOLDER/$REPO}"
-          PAYLOAD="${PAYLOAD//TIMESTAMP_PLACEHOLDER/$TIMESTAMP}"
+          echo "Sending payload..."
+          HTTP_CODE=$(curl -s -o /tmp/discord_resp.txt -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$DISCORD_WEBHOOK")
 
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-               -H "Content-Type: application/json" \
-               -d "$PAYLOAD" \
-               "$DISCORD_WEBHOOK")
+          echo "HTTP $HTTP_CODE"
+          cat /tmp/discord_resp.txt || true
 
           if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ Discord notification sent — ${VERSION}"
+            echo "Sent — ${VERSION}"
           else
-            echo "⚠️ HTTP $HTTP_CODE — sending fallback"
-            FALLBACK="{\"username\":\"Binxix Hub V7\",\"content\":\"🚀 **${VERSION}** — ${SAFE_MSG}\n🔗 ${COMMIT_URL}\"}"
-            curl -s -H "Content-Type: application/json" -d "$FALLBACK" "$DISCORD_WEBHOOK"
-            echo "✅ Fallback sent"
+            echo "Failed (HTTP $HTTP_CODE) — sending fallback plaintext"
+            curl -s -H "Content-Type: application/json" \
+              -d "{\"username\":\"Binxix Hub V7\",\"content\":\"${VERSION} — ${SAFE_MSG}\"}" \
+              "$DISCORD_WEBHOOK"
           fi
