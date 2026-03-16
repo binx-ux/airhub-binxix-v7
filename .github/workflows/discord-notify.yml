@@ -25,7 +25,8 @@ jobs:
           set -euo pipefail
 
           # ── Commit Info ──
-          COMMIT_MSG=$(echo '${{ github.event.head_commit.message }}' | head -1)
+          # FIX: was single-quoted so ${{ }} was never expanded by Actions
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -1)
           COMMIT_SHA="${{ github.sha }}"
           SHORT_SHA="${COMMIT_SHA:0:7}"
           AUTHOR="${{ github.event.head_commit.author.name }}"
@@ -58,9 +59,6 @@ jobs:
 
           # ══════════════════════════════════════════
           # VALIDATE REQUIRED HEADER (first 4 lines)
-          # The workflow only fires if the pushed file
-          # starts with exactly the V7 header block.
-          # If the header is missing, skip silently.
           # ══════════════════════════════════════════
           LINE1=$(sed -n '1p' "$SOURCE_FILE")
           LINE2=$(sed -n '2p' "$SOURCE_FILE")
@@ -69,10 +67,10 @@ jobs:
 
           EXPECTED_L1='local SCRIPT_VERSION = "'
           EXPECTED_L2='local SCRIPT_VERSION_DISPLAY = "7."..SCRIPT_VERSION'
-          EXPECTED_L3='local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/airhub-binxix-v6/main/VERSION"'
+          # FIX: was still pointing at old v6 repo URL — updated to v7
+          EXPECTED_L3='local VERSION_URL = "https://raw.githubusercontent.com/binx-ux/binxix-hub-v7/main/VERSION"'
           EXPECTED_L4='local INTEGRITY_HASH = "binxix_v7_official"'
 
-          # Line 1 just needs to START with the pattern (version string varies)
           if ! echo "$LINE1" | grep -qF "$EXPECTED_L1"; then
             echo "⏭️ Skipping — line 1 does not match V7 header (got: $LINE1)"
             exit 0
@@ -82,7 +80,7 @@ jobs:
             exit 0
           fi
           if [ "$LINE3" != "$EXPECTED_L3" ]; then
-            echo "⏭️ Skipping — line 3 does not match V7 header"
+            echo "⏭️ Skipping — line 3 does not match V7 header (got: $LINE3)"
             exit 0
           fi
           if [ "$LINE4" != "$EXPECTED_L4" ]; then
@@ -94,48 +92,38 @@ jobs:
 
           # ══════════════════════════════════════════
           # DETECT OFFLINE / MAINTENANCE PUSH
-          # If commit message contains "offline" or
-          # "updating" (case-insensitive) send a
-          # separate "offline / please wait" embed
-          # and exit — no version bump needed.
           # ══════════════════════════════════════════
           LOWER_MSG=$(echo "$COMMIT_MSG" | tr '[:upper:]' '[:lower:]')
 
           if echo "$LOWER_MSG" | grep -qE "(offline|updating)"; then
             echo "📴 Offline/updating push detected — sending status embed"
 
-            OFFLINE_PAYLOAD=$(cat <<EOF
-          {
-            "username": "Binxix Hub V7",
-            "embeds": [{
-              "title": "🔴 Binxix Hub — Offline / Updating",
-              "color": 15158332,
-              "description": "**Binxix Hub is currently offline while an update is being pushed.**\n\nPlease wait — the script will be back online shortly.\n\n> Do not execute the script until this message is followed by a new update ping.",
-              "fields": [
-                {
-                  "name": "Status",
-                  "value": "🔴 Offline",
-                  "inline": true
-                },
-                {
-                  "name": "Pushed by",
-                  "value": "${AUTHOR}",
-                  "inline": true
-                },
-                {
-                  "name": "Commit",
-                  "value": "[\`${SHORT_SHA}\`](${COMMIT_URL})",
-                  "inline": true
-                }
-              ],
-              "footer": {
-                "text": "Binxix Hub Updates • ${REPO}"
-              },
-              "timestamp": "${TIMESTAMP}"
-            }]
-          }
-          EOF
-            )
+            # FIX: heredoc terminator must have NO leading whitespace when using <<EOF
+            # Using <<-EOF strips leading tabs only — so switched to unindented EOF marker
+            OFFLINE_PAYLOAD=$(cat <<'ENDJSON'
+{
+  "username": "Binxix Hub V7",
+  "embeds": [{
+    "title": "🔴 Binxix Hub — Offline / Updating",
+    "color": 15158332,
+    "description": "**Binxix Hub is currently offline while an update is being pushed.**\n\nPlease wait — the script will be back online shortly.\n\n> Do not execute the script until this message is followed by a new update ping.",
+    "fields": [
+      { "name": "Status",    "value": "🔴 Offline",   "inline": true },
+      { "name": "Pushed by", "value": "AUTHOR_PLACEHOLDER", "inline": true },
+      { "name": "Commit",    "value": "SHA_PLACEHOLDER",    "inline": true }
+    ],
+    "footer": { "text": "Binxix Hub Updates • REPO_PLACEHOLDER" },
+    "timestamp": "TIMESTAMP_PLACEHOLDER"
+  }]
+}
+ENDJSON
+)
+            # FIX: substitute values after building JSON so special chars in variables
+            # don't break the JSON structure
+            OFFLINE_PAYLOAD="${OFFLINE_PAYLOAD//AUTHOR_PLACEHOLDER/$AUTHOR}"
+            OFFLINE_PAYLOAD="${OFFLINE_PAYLOAD//SHA_PLACEHOLDER/[\`${SHORT_SHA}\`](${COMMIT_URL})}"
+            OFFLINE_PAYLOAD="${OFFLINE_PAYLOAD//REPO_PLACEHOLDER/$REPO}"
+            OFFLINE_PAYLOAD="${OFFLINE_PAYLOAD//TIMESTAMP_PLACEHOLDER/$TIMESTAMP}"
 
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
                  -H "Content-Type: application/json" \
@@ -148,8 +136,6 @@ jobs:
 
           # ══════════════════════════════════════════
           # SEQUENTIAL VERSION (7.x format)
-          # Read build number from VERSION file,
-          # increment, write back and push.
           # ══════════════════════════════════════════
           if [ -f "VERSION" ]; then
             BUILD_NUM=$(cat VERSION | tr -d '[:space:]')
@@ -158,8 +144,6 @@ jobs:
           fi
 
           BUILD_NUM=$((BUILD_NUM + 1))
-
-          # Zero-pad to 3 digits: 1 → 001, 12 → 012, 123 → 123
           PADDED=$(printf "%03d" "$BUILD_NUM")
           VERSION="v7.${PADDED}"
 
@@ -233,8 +217,8 @@ jobs:
                 [ -n "$SETTING_LIST" ] && CHANGES="${CHANGES}⚙️ **New Settings:** ${SETTING_LIST}\n"
               fi
 
-              # New Toggles (addToggleRow pattern for V7 card UI)
-              NEW_TOGGLES=$(echo "$ADDED_LINES" | grep -oP '\"toggle\",\"\K[^"]+' 2>/dev/null | head -8 || true)
+              # New Toggles
+              NEW_TOGGLES=$(echo "$ADDED_LINES" | grep -oP '"toggle","\K[^"]+' 2>/dev/null | head -8 || true)
               if [ -n "$NEW_TOGGLES" ]; then
                 TOG_LIST=""
                 while IFS= read -r cb; do
@@ -252,8 +236,10 @@ jobs:
 
           # ══════════════════════════════════════════
           # BUILD DESCRIPTION
+          # FIX: sanitise COMMIT_MSG — strip quotes and backslashes that break JSON
           # ══════════════════════════════════════════
-          DESC="**${COMMIT_MSG}**\n"
+          SAFE_MSG=$(echo "$COMMIT_MSG" | sed 's/[\\"`]//g')
+          DESC="**${SAFE_MSG}**\n"
 
           [ -n "$STATS_LINE" ] && DESC="${DESC}\n${STATS_LINE}\n"
           [ -n "$CHANGES" ]    && DESC="${DESC}\n${CHANGES}"
@@ -268,40 +254,35 @@ jobs:
 
           # ══════════════════════════════════════════
           # SEND UPDATE EMBED TO DISCORD
+          # FIX: build JSON with placeholder substitution so variables with
+          # special characters don't silently corrupt the payload
           # ══════════════════════════════════════════
-          PAYLOAD=$(cat <<EOF
-          {
-            "username": "Binxix Hub V7",
-            "embeds": [{
-              "title": "🚀 Binxix Hub — ${VERSION}",
-              "url": "${COMMIT_URL}",
-              "color": 10181558,
-              "description": "${DESC}",
-              "fields": [
-                {
-                  "name": "Version",
-                  "value": "\`${VERSION}\`",
-                  "inline": true
-                },
-                {
-                  "name": "Commit",
-                  "value": "[\`${SHORT_SHA}\`](${COMMIT_URL})",
-                  "inline": true
-                },
-                {
-                  "name": "Pushed by",
-                  "value": "${AUTHOR}",
-                  "inline": true
-                }
-              ],
-              "footer": {
-                "text": "Binxix Hub Updates • ${REPO}"
-              },
-              "timestamp": "${TIMESTAMP}"
-            }]
-          }
-          EOF
-          )
+          PAYLOAD=$(cat <<'ENDJSON'
+{
+  "username": "Binxix Hub V7",
+  "embeds": [{
+    "title": "🚀 Binxix Hub — VERSION_PLACEHOLDER",
+    "url": "URL_PLACEHOLDER",
+    "color": 10181558,
+    "description": "DESC_PLACEHOLDER",
+    "fields": [
+      { "name": "Version",   "value": "`VERSION_PLACEHOLDER`", "inline": true },
+      { "name": "Commit",    "value": "SHA_PLACEHOLDER",        "inline": true },
+      { "name": "Pushed by", "value": "AUTHOR_PLACEHOLDER",     "inline": true }
+    ],
+    "footer": { "text": "Binxix Hub Updates • REPO_PLACEHOLDER" },
+    "timestamp": "TIMESTAMP_PLACEHOLDER"
+  }]
+}
+ENDJSON
+)
+          PAYLOAD="${PAYLOAD//VERSION_PLACEHOLDER/$VERSION}"
+          PAYLOAD="${PAYLOAD//URL_PLACEHOLDER/$COMMIT_URL}"
+          PAYLOAD="${PAYLOAD//DESC_PLACEHOLDER/$DESC}"
+          PAYLOAD="${PAYLOAD//SHA_PLACEHOLDER/[\`${SHORT_SHA}\`](${COMMIT_URL})}"
+          PAYLOAD="${PAYLOAD//AUTHOR_PLACEHOLDER/$AUTHOR}"
+          PAYLOAD="${PAYLOAD//REPO_PLACEHOLDER/$REPO}"
+          PAYLOAD="${PAYLOAD//TIMESTAMP_PLACEHOLDER/$TIMESTAMP}"
 
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
                -H "Content-Type: application/json" \
@@ -312,7 +293,7 @@ jobs:
             echo "✅ Discord notification sent — ${VERSION}"
           else
             echo "⚠️ HTTP $HTTP_CODE — sending fallback"
-            FALLBACK="{\"username\":\"Binxix Hub V7\",\"content\":\"🚀 **${VERSION}** — ${COMMIT_MSG}\n🔗 ${COMMIT_URL}\"}"
+            FALLBACK="{\"username\":\"Binxix Hub V7\",\"content\":\"🚀 **${VERSION}** — ${SAFE_MSG}\n🔗 ${COMMIT_URL}\"}"
             curl -s -H "Content-Type: application/json" -d "$FALLBACK" "$DISCORD_WEBHOOK"
             echo "✅ Fallback sent"
           fi
