@@ -8,9 +8,6 @@ if _G.BinxixCleanup then
 end
 _G.BinxixUnloaded = false
 
--- ====================================================================
--- EXECUTOR DETECTION + INTEGRITY CHECK
--- ====================================================================
 local function getExecutorName()
     local name = "Unknown"
     pcall(function()
@@ -37,9 +34,7 @@ local function checkIntegrity()
     return ok
 end
 
--- ====================================================================
--- SERVICES
--- ====================================================================
+
 local Players          = game:GetService("Players")
 local TweenService     = game:GetService("TweenService")
 local TeleportService  = game:GetService("TeleportService")
@@ -51,9 +46,7 @@ local HttpService      = game:GetService("HttpService")
 local player           = Players.LocalPlayer
 local currentPlaceId   = game.PlaceId
 
--- ====================================================================
--- BLOCKED GAMES
--- ====================================================================
+
 do
     local StarterGui = game:GetService("StarterGui")
     local blockedGames = {
@@ -71,7 +64,7 @@ do
 end
 
 -- ====================================================================
--- UI LIBRARY
+-- binxix
 -- ====================================================================
 local UILib = {}
 
@@ -128,7 +121,7 @@ function UILib.tween(obj, time, props, style, dir)
 end
 
 -- ====================================================================
--- THEME SYSTEM
+-- 3895nfk93
 -- ====================================================================
 local ThemePresets = {
     Purple = {
@@ -290,7 +283,7 @@ end
 syncLegacyKeys()
 
 -- ====================================================================
--- GAME CONFIG
+-- binxix
 -- ====================================================================
 local supportedGames = {
     [286090429]       = {name="Arsenal",                    espEnabled=true},
@@ -305,38 +298,32 @@ local currentGameData = supportedGames[currentPlaceId] or {name="Universal", esp
 local gameConfig = {espEnabled=currentGameData.espEnabled}
 
 -- ====================================================================
--- EXTERNAL SCRIPT LOADER (REDESIGNED PICKER)
+-- binxix
 -- ====================================================================
 if currentGameData.loadScript then
     local choiceMade, loadExternal = false, false
     local cGui = UILib.newScreenGui("BinxixLoader")
     cGui.DisplayOrder = 100
 
-    -- layered dim
+   
     UILib.newFrame(cGui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(0,0,0),BackgroundTransparency=0.4,BorderSizePixel=0,ZIndex=100,Active=true})
     UILib.newFrame(cGui,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(12,8,18),BackgroundTransparency=0.6,BorderSizePixel=0,ZIndex=100})
 
-    -- main card
     local cf = UILib.newFrame(cGui,{Size=UDim2.new(0,380,0,220),Position=UDim2.new(0.5,-190,0.5,-110),BackgroundColor3=Color3.fromRGB(16,14,22),BorderSizePixel=0,ZIndex=101})
     UILib.corner(cf,12)
     UILib.stroke(cf,Color3.fromRGB(120,60,180),1.5)
 
-    -- top accent bar
     local accentBar = UILib.newFrame(cf,{Size=UDim2.new(1,0,0,3),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(180,80,255),BorderSizePixel=0,ZIndex=102})
     UILib.corner(accentBar,12)
     UILib.newFrame(cf,{Size=UDim2.new(1,0,0,6),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(16,14,22),BackgroundTransparency=1,BorderSizePixel=0,ZIndex=101})
 
-    -- title + version
     UILib.newLabel(cf,{Text="BINXIX HUB",Size=UDim2.new(0,200,0,22),Position=UDim2.new(0,16,0,16),TextColor3=Color3.fromRGB(210,140,255),TextSize=17,Font=Enum.Font.GothamBold,ZIndex=103,TextXAlignment=Enum.TextXAlignment.Left})
     UILib.newLabel(cf,{Text="v"..SCRIPT_VERSION_DISPLAY,Size=UDim2.new(0,60,0,22),Position=UDim2.new(1,-76,0,16),TextColor3=Color3.fromRGB(100,80,130),TextSize=12,Font=Enum.Font.GothamBold,ZIndex=103,TextXAlignment=Enum.TextXAlignment.Right})
 
-    -- divider
     UILib.newFrame(cf,{Size=UDim2.new(1,-32,0,1),Position=UDim2.new(0,16,0,44),BackgroundColor3=Color3.fromRGB(50,35,70),BorderSizePixel=0,ZIndex=102})
 
-    -- subtitle
     UILib.newLabel(cf,{Text=currentGameData.name.." detected. Choose a script to load:",Size=UDim2.new(1,-32,0,18),Position=UDim2.new(0,16,0,54),TextColor3=Color3.fromRGB(160,145,180),TextSize=11,Font=Enum.Font.Gotham,ZIndex=102,TextXAlignment=Enum.TextXAlignment.Left})
 
-    -- external script button (green, left)
     local extBtn = UILib.newButton(cf,{
         Size=UDim2.new(0,164,0,56),Position=UDim2.new(0,16,0,82),
         BackgroundColor3=Color3.fromRGB(22,44,28),BorderSizePixel=0,Text="",ZIndex=102
@@ -347,7 +334,6 @@ if currentGameData.loadScript then
     extBtn.MouseEnter:Connect(function() extBtn.BackgroundColor3=Color3.fromRGB(28,58,35) end)
     extBtn.MouseLeave:Connect(function() extBtn.BackgroundColor3=Color3.fromRGB(22,44,28) end)
 
-    -- hub button (purple, right)
     local hubBtn = UILib.newButton(cf,{
         Size=UDim2.new(0,164,0,56),Position=UDim2.new(0,200,0,82),
         BackgroundColor3=Color3.fromRGB(35,18,55),BorderSizePixel=0,Text="",ZIndex=102
@@ -358,7 +344,6 @@ if currentGameData.loadScript then
     hubBtn.MouseEnter:Connect(function() hubBtn.BackgroundColor3=Color3.fromRGB(48,24,72) end)
     hubBtn.MouseLeave:Connect(function() hubBtn.BackgroundColor3=Color3.fromRGB(35,18,55) end)
 
-    -- countdown progress bar
     local countdownBg = UILib.newFrame(cf,{Size=UDim2.new(1,-32,0,3),Position=UDim2.new(0,16,0,156),BackgroundColor3=Color3.fromRGB(35,28,48),BorderSizePixel=0,ZIndex=102}); UILib.corner(countdownBg,4)
     local countdownFill = UILib.newFrame(countdownBg,{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(80,200,100),BorderSizePixel=0,ZIndex=103}); UILib.corner(countdownFill,4)
     local timerLbl = UILib.newLabel(cf,{Text="",Size=UDim2.new(1,-32,0,14),Position=UDim2.new(0,16,0,166),TextColor3=Color3.fromRGB(90,80,110),TextSize=9,Font=Enum.Font.Gotham,ZIndex=102,TextXAlignment=Enum.TextXAlignment.Left})
@@ -392,7 +377,7 @@ if currentGameData.loadScript then
 end
 
 -- ====================================================================
--- SETTINGS
+-- devoneday
 -- ====================================================================
 local Settings = {
     ESP={Enabled=false,BoxEnabled=true,NameEnabled=true,HealthEnabled=true,DistanceEnabled=true,TracerEnabled=true,SkeletonEnabled=false,HeadDotEnabled=true,OffscreenArrows=false,RainbowOutline=false,RainbowColor=false,OutlineEnabled=true,OutlineColor=Color3.fromRGB(200,100,180),TracerOrigin="Bottom",TracerThickness=1,TracerTransparency=0,TracerRainbowColor=false,BoxThickness=1,SkeletonThickness=1,Transparency=0,FontSize=13,Offset=0,ArrowSize=20,ArrowDistance=500,ChamsEnabled=false,ChamsFillTransparency=0.5,FilterMode="Enemies"},
@@ -408,7 +393,7 @@ local Settings = {
 }
 
 -- ====================================================================
--- PROFILE SYSTEM
+-- devoneday
 -- ====================================================================
 local PROFILE_DIR = "BinxixHubV7_Configs/"
 local currentProfileName = "Default"
@@ -439,7 +424,7 @@ end
 local function deleteProfile(name) pcall(function() if isfile(profilePath(name)) then delfile(profilePath(name)) end end) end
 
 -- ====================================================================
--- STATE
+-- binxix
 -- ====================================================================
 local allConnections = {}
 local espObjects     = {}
@@ -456,13 +441,13 @@ local targetIndex          = 1
 local waitingForKey        = false
 
 -- ====================================================================
--- SKELETON
+-- binxix
 -- ====================================================================
 local SKEL_R15={{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},{"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},{"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},{"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"}}
 local SKEL_R6={{"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},{"Torso","Left Leg"},{"Torso","Right Leg"}}
 
 -- ====================================================================
--- NOTIFICATION SYSTEM
+-- binxix
 -- ====================================================================
 local notifScreenGui = nil
 local function sendNotification(title,message,duration)
@@ -488,7 +473,7 @@ local function sendNotification(title,message,duration)
 end
 
 -- ====================================================================
--- HELPERS
+-- cloudHACK
 -- ====================================================================
 local function isSameTeam(p1,p2) if not p1.Team or not p2.Team then return false end; return p1.Team==p2.Team end
 local function isValidESPTarget(admin,target)
@@ -521,7 +506,7 @@ local function getESPColor(dist) if dist<30 then return Theme.ESP_Close elseif d
 local function getHealthColor(pct) if pct>0.6 then return Color3.fromRGB(80,255,80) elseif pct>0.3 then return Color3.fromRGB(255,200,50) else return Color3.fromRGB(255,60,60) end end
 
 -- ====================================================================
--- MULTI-TARGET
+-- cloudHACK
 -- ====================================================================
 local function buildTargetList()
     local myChar=player.Character; if not myChar then return end
@@ -581,7 +566,7 @@ end
 local function stopAimbotTracking() isTracking=false; currentTarget=nil; if rightMouseTracking then rightMouseTracking:Disconnect(); rightMouseTracking=nil end end
 
 -- ====================================================================
--- ESP
+-- binxix
 -- ====================================================================
 local function createESP(target)
     if target==player or espObjects[target.UserId] then return end
@@ -595,7 +580,7 @@ end
 local function removeESP(target) local d=espObjects[target.UserId]; if d then if d.billboard then d.billboard:Destroy() end; if d.boxHighlight then d.boxHighlight:Destroy() end; espObjects[target.UserId]=nil end end
 
 -- ====================================================================
--- NO FOG
+-- 3895nfk93
 -- ====================================================================
 local origFog=nil
 local function enableNoFog()
@@ -607,7 +592,7 @@ local function disableNoFog()
 end
 
 -- ====================================================================
--- GUN MODS
+-- 3895nfk93
 -- ====================================================================
 local gunOrig={FireRate={},ReloadTime={},EReloadTime={},Auto={},Spread={},Recoil={}}
 local weaponCache={}; local weaponCacheBuilt=false
@@ -629,7 +614,7 @@ local function applyAllGunMods() if not weaponCacheBuilt then buildWeaponCache()
 local function restoreGunMod(cat) for obj,val in pairs(gunOrig[cat]) do pcall(function() if obj and obj.Parent then obj.Value=val end end) end; gunOrig[cat]={} end
 
 -- ====================================================================
--- FLY
+-- xxCMAxx
 -- ====================================================================
 local function startFly()
     local char=player.Character; if not char then return end
@@ -645,7 +630,7 @@ local function stopFly()
 end
 
 -- ====================================================================
--- AUTO TP
+-- xxCMAxx
 -- ====================================================================
 local autoTPTarget=nil
 local autoTPRunning=false
@@ -678,7 +663,7 @@ local function stopAutoTPLoop()
 end
 
 -- ====================================================================
--- ANIMATED LOADER (FIXED: DisplayOrder set so it renders on top)
+-- 3895nfk93
 -- ====================================================================
 local function showLoader()
     local gui=UILib.newScreenGui("BinxixLoader_V7")
@@ -713,7 +698,7 @@ local function showLoader()
 end
 
 -- ====================================================================
--- MAIN GUI
+-- 3895nfk93
 -- ====================================================================
 local function createGUI()
     showLoader()
@@ -721,25 +706,21 @@ local function createGUI()
     local screenGui = UILib.newScreenGui("BinxixHub_V7")
     notifScreenGui = screenGui
 
-    -- FOV CIRCLE
     local fovCircle=UILib.newFrame(screenGui,{Name="FOVCircle",Size=UDim2.new(0,300,0,300),Position=UDim2.new(0.5,0,0.5,0),AnchorPoint=Vector2.new(0.5,0.5),BackgroundTransparency=1,Visible=false}); UILib.corner(fovCircle,100)
     local fovStroke=UILib.stroke(fovCircle,Theme.CardHeaderBg,1); fovStroke.Transparency=0.5
 
-    -- TRACER POOL
     local tracerCont=UILib.newFrame(screenGui,{Name="TracerCont",Size=UDim2.new(1,0,1,0),BackgroundTransparency=1})
     local TPOOL=30; local tPool={}; local tIdx=0
     for i=1,TPOOL do local l=Instance.new("Frame"); l.BackgroundColor3=Color3.new(1,1,1); l.BorderSizePixel=0; l.AnchorPoint=Vector2.new(0.5,0.5); l.Visible=false; l.Parent=tracerCont; tPool[i]=l end
     local function resetTracers() for i=1,tIdx do tPool[i].Visible=false end; tIdx=0 end
     local function getTracerLine() tIdx=tIdx+1; if tIdx>TPOOL then tIdx=TPOOL; return nil end; return tPool[tIdx] end
 
-    -- SKELETON POOL
     local skelCont=UILib.newFrame(screenGui,{Name="SkelCont",Size=UDim2.new(1,0,1,0),BackgroundTransparency=1})
     local SPOOL=200; local sPool={}; local sIdx=0
     for i=1,SPOOL do local l=Instance.new("Frame"); l.BackgroundColor3=Color3.new(1,1,1); l.BorderSizePixel=0; l.AnchorPoint=Vector2.new(0.5,0.5); l.Visible=false; l.Parent=skelCont; sPool[i]=l end
     local function resetSkel() for i=1,sIdx do sPool[i].Visible=false end; sIdx=0 end
     local function getSkelLine() sIdx=sIdx+1; if sIdx>SPOOL then sIdx=SPOOL; return nil end; return sPool[sIdx] end
 
-    -- ARROW POOL
     local arrowCont=UILib.newFrame(screenGui,{Name="ArrowCont",Size=UDim2.new(1,0,1,0),BackgroundTransparency=1})
     local APOOL=20; local aPool={}
     for i=1,APOOL do
@@ -753,7 +734,6 @@ local function createGUI()
     local function resetArrows() for i=1,aActiveCount do aPool[i].container.Visible=false; aPool[i].inUse=false end; aActiveCount=0 end
     local function getArrow() aActiveCount=aActiveCount+1; if aActiveCount>APOOL then aActiveCount=APOOL; return nil end; local ad=aPool[aActiveCount]; ad.container.Visible=true; return ad end
 
-    -- RADAR GUI
     local radarGui=UILib.newFrame(screenGui,{Name="Radar",Size=UDim2.new(0,Settings.Radar.Size,0,Settings.Radar.Size),Position=UDim2.new(0,10,1,-Settings.Radar.Size-10),BackgroundColor3=Theme.RadarBg,BorderSizePixel=0,Visible=false,ClipsDescendants=true}); UILib.corner(radarGui,100); UILib.stroke(radarGui,Theme.RadarBorder,1.5)
     local selfDot=UILib.newFrame(radarGui,{Size=UDim2.new(0,6,0,6),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,0),BackgroundColor3=Settings.Radar.SelfColor,BorderSizePixel=0,ZIndex=3}); UILib.corner(selfDot,100)
     UILib.newFrame(radarGui,{Size=UDim2.new(1,0,0,1),Position=UDim2.new(0,0,0.5,0),BackgroundColor3=Color3.fromRGB(255,255,255),BackgroundTransparency=0.85,BorderSizePixel=0,ZIndex=2})
@@ -762,9 +742,9 @@ local function createGUI()
 
     local targetHL=nil
 
-    -- ================================================================
-    -- UNIFIED RENDER LOOP
-    -- ================================================================
+  -- ====================================================================
+-- 3895nfk93
+-- ====================================================================
     table.insert(allConnections,RunService.RenderStepped:Connect(function()
         if isUnloading or _G.BinxixUnloaded then return end
 
@@ -945,9 +925,9 @@ local function createGUI()
         if radarDots[t.UserId] then radarDots[t.UserId]:Destroy(); radarDots[t.UserId]=nil end
     end))
 
-    -- ================================================================
-    -- MAIN WINDOW
-    -- ================================================================
+    -- ====================================================================
+-- 3895nfk93
+-- ====================================================================
     local WIN_W, WIN_H   = 580, 480
     local SIDEBAR_W      = 110
     local CONTENT_W      = WIN_W - SIDEBAR_W
@@ -972,7 +952,6 @@ local function createGUI()
         if dragging and input.UserInputType==Enum.UserInputType.MouseMovement then local d=input.Position-dragStart; mainFrame.Position=UDim2.new(startPos2.X.Scale,startPos2.X.Offset+d.X,startPos2.Y.Scale,startPos2.Y.Offset+d.Y) end
     end))
 
-    -- SIDEBAR
     local sidebar = UILib.newFrame(mainFrame,{Name="Sidebar",Size=UDim2.new(0,SIDEBAR_W,1,0),BackgroundColor3=Theme.SidebarBg,BorderSizePixel=0,ClipsDescendants=true})
     UILib.corner(sidebar,8)
     UILib.newFrame(sidebar,{Size=UDim2.new(0,8,1,0),Position=UDim2.new(1,-8,0,0),BackgroundColor3=Theme.SidebarBg,BorderSizePixel=0})
@@ -999,9 +978,9 @@ local function createGUI()
     closeBtn.MouseEnter:Connect(function() closeBtn.BackgroundColor3=Color3.fromRGB(220,60,60) end)
     closeBtn.MouseLeave:Connect(function() closeBtn.BackgroundColor3=Color3.fromRGB(180,50,50) end)
 
-    -- ================================================================
-    -- WIDGET SYSTEM
-    -- ================================================================
+   -- ====================================================================
+-- 3895nfk93
+-- ====================================================================
     local function makeCard(parent, title, x, y, w, h_body)
         local wrapper = UILib.newFrame(parent,{Size=UDim2.new(0,w,0,CARD_HEADER_H+h_body),Position=UDim2.new(0,x,0,y),BackgroundColor3=Theme.CardBg,BorderSizePixel=0}); UILib.corner(wrapper,6); UILib.stroke(wrapper,Theme.CardBorder,1)
         local header = UILib.newFrame(wrapper,{Size=UDim2.new(1,0,0,CARD_HEADER_H),BackgroundColor3=Theme.CardHeaderBg,BorderSizePixel=0}); UILib.corner(header,6)
@@ -1218,7 +1197,6 @@ local function createGUI()
         return body, wrapper
     end
 
-    -- TAB SYSTEM
     local tabBuilders = {}
 
     local function makeTabBtn(name, icon, index)
@@ -1250,11 +1228,10 @@ local function createGUI()
         tabPages[name]=makePage(name)
     end
 
-    -- ================================================================
-    -- TAB BUILDERS
-    -- ================================================================
+    -- ====================================================================
+-- 3895nfk93
+-- ====================================================================
 
-    -- ---- GENERAL ----
     local speedVel = nil
 
     tabBuilders["General"] = function(page)
@@ -1354,7 +1331,7 @@ local function createGUI()
         })
     end
 
-    -- ---- AIMBOT ----
+    -- ---- binxix ----
     tabBuilders["Aimbot"] = function(page)
         addCard(page,1,"Aimbot",{
             {"toggle","Enabled",Settings.Aimbot.Enabled,function(e) Settings.Aimbot.Enabled=e; sendNotification("Aimbot",e and "On" or "Off",2) end},
@@ -1380,7 +1357,7 @@ local function createGUI()
         })
     end
 
-    -- ---- ESP ----
+    -- ---- binxix ----
     tabBuilders["ESP"] = function(page)
         if gameConfig.espEnabled then
             addCard(page,1,"ESP",{
@@ -1429,7 +1406,7 @@ local function createGUI()
         end
     end
 
-    -- ---- CROSSHAIR ----
+
     tabBuilders["Crosshair"] = function(page)
         addCard(page,1,"Crosshair",{
             {"toggle","Enabled",Settings.Crosshair.Enabled,function(e) Settings.Crosshair.Enabled=e end},
@@ -1510,7 +1487,7 @@ local function createGUI()
         page.CanvasSize=UDim2.new(0,0,0,math.max(col1Y(page).Value,col2Y(page).Value)+CONTENT_PAD)
     end
 
-    -- ---- RADAR ----
+   
     tabBuilders["Radar"] = function(page)
         addCard(page,1,"Radar",{
             {"toggle","Enable Radar",Settings.Radar.Enabled,function(e) Settings.Radar.Enabled=e; sendNotification("Radar",e and "On" or "Off",2) end},
@@ -1525,9 +1502,9 @@ local function createGUI()
         })
     end
 
-    -- ====================================================================
-    -- ---- SOCIAL TAB ----
-    -- ====================================================================
+   -- ====================================================================
+-- 3895nfk93
+-- ====================================================================
     local function openURL(url)
         local opened = false
         pcall(function() if openurl then openurl(url); opened=true end end)
@@ -1651,7 +1628,7 @@ local function createGUI()
         page.CanvasSize = UDim2.new(0,0,0,col1Y(page).Value+CONTENT_PAD)
     end
 
-    -- ---- REPORT ----
+  
     local chatSpyEnabled = false
     tabBuilders["Report"] = function(page)
         addCard(page,1,"Chat Spy",{
@@ -1694,7 +1671,7 @@ local function createGUI()
         page.CanvasSize=UDim2.new(0,0,0,math.max(col1Y(page).Value,col2Y(page).Value)+CONTENT_PAD)
     end
 
-    -- ---- SETTINGS ----
+
     local currentToggleKey = Settings.Keybinds.ToggleGUI
     tabBuilders["Settings"] = function(page)
         addCard(page,1,"Theme",{
@@ -1760,16 +1737,15 @@ local function createGUI()
         page.CanvasSize=UDim2.new(0,0,0,math.max(col1Y(page).Value,col2Y(page).Value)+CONTENT_PAD)
     end
 
-    -- Build first tab
     tabPages["General"].Visible = true
     task.defer(function()
         tabBuilders["General"](tabPages["General"])
         tabBuilt["General"] = true
     end)
 
-    -- ================================================================
-    -- CROSSHAIR RENDERING
-    -- ================================================================
+    -- ====================================================================
+-- 3895nfk93
+-- ====================================================================
     local chFrame=UILib.newFrame(screenGui,{Name="Crosshair",Size=UDim2.new(1,0,1,0),Position=UDim2.new(0,0,0,0),BackgroundTransparency=1,Visible=false})
     local chL={}; for i=1,12 do local l=Instance.new("Frame"); l.BackgroundColor3=Color3.new(1,1,1); l.BorderSizePixel=0; l.AnchorPoint=Vector2.new(0.5,0.5); l.Visible=false; l.Parent=chFrame; chL[i]=l end
     local chO={}; for i=1,12 do local l=Instance.new("Frame"); l.BackgroundColor3=Color3.new(0,0,0); l.BorderSizePixel=0; l.AnchorPoint=Vector2.new(0.5,0.5); l.Visible=false; l.ZIndex=0; l.Parent=chFrame; chO[i]=l end
@@ -1820,9 +1796,9 @@ local function createGUI()
     end
     table.insert(allConnections,RunService.RenderStepped:Connect(function() if isUnloading or _G.BinxixUnloaded then return end; updateCrosshair() end))
 
-    -- ================================================================
-    -- GAMEPLAY LOOPS
-    -- ================================================================
+    -- ====================================================================
+-- cloudHACK
+-- ====================================================================
     table.insert(allConnections,RunService.Heartbeat:Connect(function(dt)
         if isUnloading or _G.BinxixUnloaded then
             if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
@@ -1961,9 +1937,9 @@ local function createGUI()
     for _,p in ipairs(Players:GetPlayers()) do if p~=player then pcall(function() p.Chatted:Connect(function(msg) if chatSpyEnabled then print("[ChatSpy] "..p.DisplayName..": "..msg) end end) end) end end
     table.insert(allConnections,Players.PlayerAdded:Connect(function(p) pcall(function() p.Chatted:Connect(function(msg) if chatSpyEnabled then print("[ChatSpy] "..p.DisplayName..": "..msg) end end) end) end))
 
-    -- ================================================================
-    -- INPUT HANDLER
-    -- ================================================================
+   -- ====================================================================
+-- cloudHACK
+-- ====================================================================
     table.insert(allConnections,UserInputService.InputBegan:Connect(function(input,gp)
         if isUnloading or _G.BinxixUnloaded or gp then return end
         if waitingForKey then return end
@@ -2003,7 +1979,7 @@ local function createGUI()
 end
 
 -- ====================================================================
--- INITIALIZE
+-- devoneday
 -- ====================================================================
 local gui = createGUI()
 
