@@ -742,9 +742,6 @@ local function createGUI()
 
     local targetHL=nil
 
-  -- ====================================================================
--- 3895nfk93
--- ====================================================================
     table.insert(allConnections,RunService.RenderStepped:Connect(function()
         if isUnloading or _G.BinxixUnloaded then return end
 
@@ -978,9 +975,6 @@ local function createGUI()
     closeBtn.MouseEnter:Connect(function() closeBtn.BackgroundColor3=Color3.fromRGB(220,60,60) end)
     closeBtn.MouseLeave:Connect(function() closeBtn.BackgroundColor3=Color3.fromRGB(180,50,50) end)
 
-   -- ====================================================================
--- 3895nfk93
--- ====================================================================
     local function makeCard(parent, title, x, y, w, h_body)
         local wrapper = UILib.newFrame(parent,{Size=UDim2.new(0,w,0,CARD_HEADER_H+h_body),Position=UDim2.new(0,x,0,y),BackgroundColor3=Theme.CardBg,BorderSizePixel=0}); UILib.corner(wrapper,6); UILib.stroke(wrapper,Theme.CardBorder,1)
         local header = UILib.newFrame(wrapper,{Size=UDim2.new(1,0,0,CARD_HEADER_H),BackgroundColor3=Theme.CardHeaderBg,BorderSizePixel=0}); UILib.corner(header,6)
@@ -1228,10 +1222,6 @@ local function createGUI()
         tabPages[name]=makePage(name)
     end
 
-    -- ====================================================================
--- 3895nfk93
--- ====================================================================
-
     local speedVel = nil
 
     tabBuilders["General"] = function(page)
@@ -1331,7 +1321,6 @@ local function createGUI()
         })
     end
 
-    -- ---- binxix ----
     tabBuilders["Aimbot"] = function(page)
         addCard(page,1,"Aimbot",{
             {"toggle","Enabled",Settings.Aimbot.Enabled,function(e) Settings.Aimbot.Enabled=e; sendNotification("Aimbot",e and "On" or "Off",2) end},
@@ -1357,7 +1346,6 @@ local function createGUI()
         })
     end
 
-    -- ---- binxix ----
     tabBuilders["ESP"] = function(page)
         if gameConfig.espEnabled then
             addCard(page,1,"ESP",{
@@ -1405,7 +1393,6 @@ local function createGUI()
             end)
         end
     end
-
 
     tabBuilders["Crosshair"] = function(page)
         addCard(page,1,"Crosshair",{
@@ -1487,7 +1474,6 @@ local function createGUI()
         page.CanvasSize=UDim2.new(0,0,0,math.max(col1Y(page).Value,col2Y(page).Value)+CONTENT_PAD)
     end
 
-   
     tabBuilders["Radar"] = function(page)
         addCard(page,1,"Radar",{
             {"toggle","Enable Radar",Settings.Radar.Enabled,function(e) Settings.Radar.Enabled=e; sendNotification("Radar",e and "On" or "Off",2) end},
@@ -1502,9 +1488,6 @@ local function createGUI()
         })
     end
 
-   -- ====================================================================
--- 3895nfk93
--- ====================================================================
     local function openURL(url)
         local opened = false
         pcall(function() if openurl then openurl(url); opened=true end end)
@@ -1628,49 +1611,17 @@ local function createGUI()
         page.CanvasSize = UDim2.new(0,0,0,col1Y(page).Value+CONTENT_PAD)
     end
 
-  
     local chatSpyEnabled = false
     tabBuilders["Report"] = function(page)
         addCard(page,1,"Chat Spy",{
             {"toggle","Enable Chat Spy",false,function(e) chatSpyEnabled=e; sendNotification("Chat Spy",e and "Listening" or "Disabled",2) end},
             {"info","Logs all chat messages to console (F9).",Theme.TextDim},
         })
-
-        local sugY = col1Y(page).Value
-        local sugBody,_=makeCard(page,"Suggestion",COL1_X,sugY,CARD_W,96)
-        col1Y(page).Value=sugY+CARD_HEADER_H+100+CONTENT_PAD
-        addInfoRow(sugBody,"Describe the feature/change you want:",0,Theme.TextDim)
-        local sugBox=UILib.newBox(sugBody,{Size=UDim2.new(1,0,0,46),Position=UDim2.new(0,0,0,18),BackgroundColor3=Theme.InputBg,BorderSizePixel=1,BorderColor3=Theme.InputBorder,Text="",PlaceholderText="Your suggestion...",PlaceholderColor3=Theme.TextDim,TextColor3=Theme.TextPrimary,TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,TextWrapped=true,MultiLine=true,ClearTextOnFocus=false}); UILib.corner(sugBox,4)
-        local sugPad=Instance.new("UIPadding"); sugPad.PaddingLeft=UDim.new(0,5); sugPad.PaddingTop=UDim.new(0,4); sugPad.Parent=sugBox
-        addButtonRow(sugBody,"Send Suggestion",68,function()
-            local s=sugBox.Text; if s=="" or #s<5 then sendNotification("Suggestion","Write at least 5 chars",2); return end
-            local payload={embeds={{title="Suggestion - Binxix Hub V7",color=3066993,fields={{name="Suggestion",value=s,inline=false},{name="Game",value=currentGameData.name.." ("..tostring(currentPlaceId)..")",inline=true},{name="Executor",value=getExecutorName(),inline=true}},footer={text="Binxix Hub V7"},timestamp=os.date("!%Y-%m-%dT%H:%M:%SZ")}}}
-            local ok=pcall(function() local hf=(syn and syn.request) or (http and http.request) or http_request or request; if hf then hf({Url="https://discord.com/api/webhooks/1469598356975124531/2gW0s_svmwzMFNPidKhyOztLVKPVPI3V2g1OT0VN3ownM6Fpzu1UZ1qFl33ojmnfNGbr",Method="POST",Headers={["Content-Type"]="application/json"},Body=HttpService:JSONEncode(payload)}) else error("no http") end end)
-            sendNotification("Suggestion",ok and "Sent!" or "Failed",3); if ok then sugBox.Text="" end
-        end)
-        page.CanvasSize=UDim2.new(0,0,0,math.max(col1Y(page).Value,col2Y(page).Value)+CONTENT_PAD)
-
-        addCard(page,2,"Bug Report",{
-            {"info","Describe the bug below and send.",Theme.TextDim},
-        })
-        local bugY=col2Y(page).Value
-        local bugBody,_=makeCard(page,"Bug Report",COL2_X,bugY,CARD_W,96)
-        col2Y(page).Value=bugY+CARD_HEADER_H+100+CONTENT_PAD
-        addInfoRow(bugBody,"Describe what went wrong:",0,Theme.TextDim)
-        local bugBox=UILib.newBox(bugBody,{Size=UDim2.new(1,0,0,46),Position=UDim2.new(0,0,0,18),BackgroundColor3=Theme.InputBg,BorderSizePixel=1,BorderColor3=Theme.InputBorder,Text="",PlaceholderText="Describe the bug...",PlaceholderColor3=Theme.TextDim,TextColor3=Theme.TextPrimary,TextSize=10,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Top,TextWrapped=true,MultiLine=true,ClearTextOnFocus=false}); UILib.corner(bugBox,4)
-        local bugPad=Instance.new("UIPadding"); bugPad.PaddingLeft=UDim.new(0,5); bugPad.PaddingTop=UDim.new(0,4); bugPad.Parent=bugBox
-        addButtonRow(bugBody,"Send Report",68,function()
-            local s=bugBox.Text; if s=="" or #s<5 then sendNotification("Report","5+ chars needed",2); return end
-            local payload={embeds={{title="Bug Report - Binxix Hub V7",color=11163135,fields={{name="Executor",value=getExecutorName(),inline=true},{name="Game",value=currentGameData.name.." ("..tostring(currentPlaceId)..")",inline=true},{name="Description",value=s,inline=false}},footer={text="Binxix Hub V7"},timestamp=os.date("!%Y-%m-%dT%H:%M:%SZ")}}}
-            local ok=pcall(function() local hf=(syn and syn.request) or (http and http.request) or http_request or request; if hf then hf({Url="https://discord.com/api/webhooks/1466757772145070080/-3-YwfjgH-yEl8yeS_AmuW4E3jDL2aF4GrQdnl0woOtRd_mTF6J4BezIMNlTvvnieSaP",Method="POST",Headers={["Content-Type"]="application/json"},Body=HttpService:JSONEncode(payload)}) else error("no http") end end)
-            sendNotification("Report",ok and "Sent!" or "Failed",3); if ok then bugBox.Text="" end
-        end)
         addCard(page,2,"Community",{
             {"button","Copy Discord Invite",function() pcall(function() if setclipboard then setclipboard("https://discord.gg/S4nPV2Rx7F"); sendNotification("Discord","Invite copied!",3) end end) end},
         })
         page.CanvasSize=UDim2.new(0,0,0,math.max(col1Y(page).Value,col2Y(page).Value)+CONTENT_PAD)
     end
-
 
     local currentToggleKey = Settings.Keybinds.ToggleGUI
     tabBuilders["Settings"] = function(page)
@@ -1743,9 +1694,6 @@ local function createGUI()
         tabBuilt["General"] = true
     end)
 
-    -- ====================================================================
--- 3895nfk93
--- ====================================================================
     local chFrame=UILib.newFrame(screenGui,{Name="Crosshair",Size=UDim2.new(1,0,1,0),Position=UDim2.new(0,0,0,0),BackgroundTransparency=1,Visible=false})
     local chL={}; for i=1,12 do local l=Instance.new("Frame"); l.BackgroundColor3=Color3.new(1,1,1); l.BorderSizePixel=0; l.AnchorPoint=Vector2.new(0.5,0.5); l.Visible=false; l.Parent=chFrame; chL[i]=l end
     local chO={}; for i=1,12 do local l=Instance.new("Frame"); l.BackgroundColor3=Color3.new(0,0,0); l.BorderSizePixel=0; l.AnchorPoint=Vector2.new(0.5,0.5); l.Visible=false; l.ZIndex=0; l.Parent=chFrame; chO[i]=l end
@@ -1796,9 +1744,6 @@ local function createGUI()
     end
     table.insert(allConnections,RunService.RenderStepped:Connect(function() if isUnloading or _G.BinxixUnloaded then return end; updateCrosshair() end))
 
-    -- ====================================================================
--- cloudHACK
--- ====================================================================
     table.insert(allConnections,RunService.Heartbeat:Connect(function(dt)
         if isUnloading or _G.BinxixUnloaded then
             if speedVel then pcall(function() speedVel:Destroy() end); speedVel=nil end
@@ -1937,9 +1882,6 @@ local function createGUI()
     for _,p in ipairs(Players:GetPlayers()) do if p~=player then pcall(function() p.Chatted:Connect(function(msg) if chatSpyEnabled then print("[ChatSpy] "..p.DisplayName..": "..msg) end end) end) end end
     table.insert(allConnections,Players.PlayerAdded:Connect(function(p) pcall(function() p.Chatted:Connect(function(msg) if chatSpyEnabled then print("[ChatSpy] "..p.DisplayName..": "..msg) end end) end) end))
 
-   -- ====================================================================
--- cloudHACK
--- ====================================================================
     table.insert(allConnections,UserInputService.InputBegan:Connect(function(input,gp)
         if isUnloading or _G.BinxixUnloaded or gp then return end
         if waitingForKey then return end
