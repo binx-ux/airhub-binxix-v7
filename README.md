@@ -1,10 +1,10 @@
 ```
-██████╗ ██╗███╗   ██╗██╗  ██╗██╗██╗  ██╗    ██╗  ██╗██╗   ██╗██████╗     ██╗   ██╗ ██████╗ 
-██╔══██╗██║████╗  ██║╚██╗██╔╝██║╚██╗██╔╝    ██║  ██║██║   ██║██╔══██╗    ██║   ██║██╔════╝ 
-██████╔╝██║██╔██╗ ██║ ╚███╔╝ ██║ ╚███╔╝     ███████║██║   ██║██████╔╝    ██║   ██║███████╗ 
-██╔══██╗██║██║╚██╗██║ ██╔██╗ ██║ ██╔██╗     ██╔══██║██║   ██║██╔══██╗    ╚██╗ ██╔╝██╔═══██╗
-██████╔╝██║██║ ╚████║██╔╝ ██╗██║██╔╝ ██╗    ██║  ██║╚██████╔╝██████╔╝     ╚████╔╝ ╚██████╔╝
-╚═════╝ ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝    ╚═╝  ╚═╝ ╚═════╝ ╚═════╝       ╚═══╝   ╚═════╝
+██████╗ ██╗███╗   ██╗██╗  ██╗██╗██╗  ██╗    ██╗  ██╗██╗   ██╗██████╗     
+██╔══██╗██║████╗  ██║╚██╗██╔╝██║╚██╗██╔╝    ██║  ██║██║   ██║██╔══██╗    
+██████╔╝██║██╔██╗ ██║ ╚███╔╝ ██║ ╚███╔╝     ███████║██║   ██║██████╔╝    
+██╔══██╗██║██║╚██╗██║ ██╔██╗ ██║ ██╔██╗     ██╔══██║██║   ██║██╔══██╗    
+██████╔╝██║██║ ╚████║██╔╝ ██╗██║██╔╝ ██╗    ██║  ██║╚██████╔╝██████╔╝     
+╚═════╝ ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝    ╚═╝  ╚═╝ ╚═════╝ ╚═════╝     
 ```
 
 <div align="center">
@@ -32,7 +32,7 @@ Copy and execute this in your Roblox executor:
 loadstring(game:HttpGet("https://raw.githubusercontent.com/binx-ux/airhub-binxix-v7/refs/heads/main/script/aimbot"))()
 ```
 
-> **Note:** The script auto-updates on every load. If a newer version is available a notification banner will appear inside the GUI.
+> **Note:** The script auto-updates on every load. If a newer version is available, a notification banner will appear inside the GUI.
 
 > **Known Issue:** We are actively investigating FPS drops affecting some users. While we work on a fix, avoid using ESP, tracers, skeleton, chams, offscreen arrows, and the radar. These are the features most likely to cause drops. Thank you for your patience.
 
@@ -53,6 +53,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/binx-ux/airhub-binxix
 - [Themes](#-themes)
 - [Config System](#-config-system)
 - [Auto Updates](#-auto-updates)
+- [Contributors](#-contributors)
 - [Discord](#-discord)
 
 ---
@@ -60,6 +61,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/binx-ux/airhub-binxix
 ## ✨ What's New in V7
 
 ### UI Overhaul
+
 The entire interface has been rebuilt from scratch. V7 moves away from the flat horizontal tab bar and adopts a **sidebar + card layout** — a vertical tab list on the left and dense card-based sections filling the content area. Every section is a self-contained card with a colored header and a dark body.
 
 - Animated **pill toggle switches** replace old checkboxes
@@ -68,9 +70,10 @@ The entire interface has been rebuilt from scratch. V7 moves away from the flat 
 - Collapsible sidebar with logo, version, and game name
 - Smooth tab switching with lazy-load — tabs only build their content when first opened
 - **Animated progress bar loader** with executor detection and integrity check on startup
-- Close button, drag to reposition, RightControl to toggle
+- Close button, drag to reposition, `RightControl` to toggle
 
 ### New Features
+
 | Feature | Details |
 |---|---|
 | Player Radar | Live minimap circle in the bottom-left. Rotates with your camera. Enemy dots red, team dots green |
@@ -82,6 +85,7 @@ The entire interface has been rebuilt from scratch. V7 moves away from the flat 
 | Executor Warning | Notifies if a weak executor is detected that may cause compatibility issues |
 
 ### Bug Fixes
+
 | Fix | Details |
 |---|---|
 | LOS through walls | Aimbot was locking through walls even with Require LOS enabled. Fixed by properly excluding all character BaseParts from the raycast |
@@ -209,15 +213,18 @@ Modifies weapon behavior. May cause lag on some games — WIP.
 
 ## 🎮 Game Support
 
-Binxix Hub runs universally on all Roblox games. Extended mode is available on launch for:
+Binxix Hub runs universally on all Roblox games. Extended support is available on launch for the following titles:
 
-| Game | Supported External Script |
-|---|---|
-| Murder Mystery 2 | **Vertex** — choose on inject |
-| The Strongest Battlegrounds | **Phantasm** — choose on inject |
-| BlockSpin | Movement mods auto-disabled (game restriction) |
+| Game | External Loader | Notes |
+|---|---|---|
+| Arsenal | None | Full universal support |
+| Murder Mystery 2 | **Vertex** | Choose on inject |
+| The Strongest Battlegrounds | **Phantasm** | Choose on inject |
+| BlockSpin | None | Movement mods auto-disabled (game restriction) |
+| KAT | None | ACS-compatible aimbot helpers |
+| MiscGunTest-X | None | Full universal support |
 
-All other games load Binxix Hub directly with full universal support.
+All other games load Binxix Hub directly with full universal feature support.
 
 ---
 
@@ -247,11 +254,13 @@ Each theme fully recolors the sidebar, cards, toggles, sliders, and accents.
 
 Settings can be saved to named profiles stored in `BinxixHubV7_Configs/` on your executor's workspace.
 
-- **Save** — writes current settings to a `.json` profile
-- **Load** — restores settings from a saved profile
-- **Delete** — removes a profile
-- **Quick Load** — scrollable list of saved profiles for one-click loading
-- **Auto-load** — if a profile named `Default` exists it loads automatically on startup
+| Action | Details |
+|---|---|
+| Save | Writes current settings to a `.json` profile |
+| Load | Restores settings from a saved profile |
+| Delete | Removes a profile |
+| Quick Load | Scrollable list of saved profiles for one-click loading |
+| Auto-Load | If a profile named `Default` exists it loads automatically on startup |
 
 ---
 
@@ -261,14 +270,30 @@ On every script execution the hub fetches the latest version number from GitHub.
 
 ---
 
+## 👥 Contributors
+
+The people who built Binxix Hub V7.
+
+| Name | Role | Contributions |
+|---|---|---|
+| **binxix** | Lead Developer — Aimbot & ESP | Aimbot system, ESP rendering, chams, tracers, skeleton, offscreen arrows, and all visual features |
+| **xxCMAxx** | Auto TP | Auto teleport loop system, target selection logic, and protected player detection |
+| **devoneday** | Main GUI | The entire main GUI framework — sidebar, tab system, card layout, widget builder, and drag logic |
+| **cloudHACK** | Misc Options | Anti-AFK, chat spammer, server hop, rejoin, gun mods, and misc gameplay features |
+| **3895nfk93** | Crosshair & UI | Crosshair system, custom UI components, theme engine, color sliders, and visual polish |
+
+---
+
 ## 💬 Discord
 
 Join the community for support, updates, and announcements:
 
 **[discord.gg/S4nPV2Rx7F](https://discord.gg/S4nPV2Rx7F)**
 
+> **Note:** The Discord server now operates on a **ticket-only support model**. Open a ticket in the server for bug reports, questions, or feature requests.
+
 ---
 
 ## ⚠️ Disclaimer
 
-This script is provided for **educational and in-game research purposes**. Using scripts in Roblox may violate [Roblox's Terms of Service](https://en.help.roblox.com/hc/en-us/articles/115004647846). Use at your own risk. The author is not responsible for any account actions taken by Roblox as a result of using this software.
+This script is provided for **educational and in-game research purposes only**. Using scripts in Roblox may violate [Roblox's Terms of Service](https://en.help.roblox.com/hc/en-us/articles/115004647846). Use at your own risk. The author is not responsible for any account actions taken by Roblox as a result of using this software.
